@@ -1,0 +1,5 @@
+# RideHail monorepo — pnpm workspaces (2026 best practice)
+# All apps and packages are managed from root
+packages:
+  - "apps/*"
+  - "packages/*"

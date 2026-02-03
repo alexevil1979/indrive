@@ -1,0 +1,25 @@
+node_modules
+dist
+build
+.next
+.expo
+*.log
+.env
+.env.local
+.env.*.local
+.DS_Store
+coverage
+*.tsbuildinfo
+pnpm-lock.yaml
+.vercel
+.turbo
+
+# Go
+*.exe
+vendor/
+
+# IDE
+.idea
+.vscode/*.json
+!.vscode/settings.json
+!.vscode/extensions.json

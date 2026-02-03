@@ -1,0 +1,7 @@
+# Basic k8s namespace for RideHail (stub for later full manifests)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ridehail
+  labels:
+    app.kubernetes.io/name: ridehail

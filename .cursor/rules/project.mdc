@@ -1,0 +1,9 @@
+---
+description: RideHail monorepo — DDD, Clean Architecture, zero questions mode
+globs: ["**/*"]
+---
+- Use DDD + Clean Architecture in every service.
+- Backend: Go 1.23+ primary; TypeScript/Node only for real-time/fast-iteration.
+- API: gRPC internal, REST/JSON public, GraphQL for complex queries.
+- Never ask clarifying questions; choose production-grade 2026 defaults and document in comments.
+- Commits: conventional (feat:, fix:, refactor:).

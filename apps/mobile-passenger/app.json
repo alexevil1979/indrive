@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "RideHail Passenger",
+    "slug": "ridehail-passenger",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "ridehail",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2563eb"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.ridehail.passenger" },
+    "android": { "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#2563eb" }, "package": "com.ridehail.passenger" },
+    "plugins": ["expo-router"]
+  }
+}
