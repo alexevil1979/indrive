@@ -6,7 +6,7 @@ inDrive-подобный сервис заказа поездок с торга�
 
 | Компонент       | Технология                                      |
 |-----------------|------------------------------------------------|
-| Backend         | Go 1.23+ (auth, user, geolocation, ride, payment) |
+| Backend         | Go 1.23+ (auth с OAuth2, user, geolocation, ride, payment) |
 | Realtime        | Node.js (notification: push, chat WebSocket)    |
 | Mobile          | React Native / Expo (passenger, driver)         |
 | Web Admin       | Next.js 15, Tailwind, shadcn/ui                 |

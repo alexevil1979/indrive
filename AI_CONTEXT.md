@@ -21,7 +21,7 @@
 - **Grafana:** datasources provisioned, базовый дашборд ridehail-overview
 
 ### Backend-сервисы (Go)
-- **auth** (порт 8080): регистрация, логин, refresh, JWT, миграции, /metrics
+- **auth** (порт 8080): регистрация, логин, refresh, JWT, **OAuth2 (Google/Yandex/VK)**, миграции (включая oauth_accounts), /metrics
 - **user** (8081): профили, /api/v1/users/me, /metrics
 - **geolocation** (8082): позиция водителя, nearest drivers (Redis GEO), WebSocket /ws/tracking, /metrics
 - **ride** (8083): поездки, ставки, Kafka-события, admin /api/v1/admin/rides, /metrics
@@ -56,13 +56,13 @@
 
 **Выбор одного из направлений:**
 
-1. **OAuth2 (Google/Yandex/VK)** — реальная авторизация через провайдеров (сейчас stubs 501).
+1. ~~**OAuth2 (Google/Yandex/VK)**~~ — ✅ реализовано (auth service)
 2. **Верификация водителя** — загрузка документов в MinIO, статус верификации в БД.
 3. **Платёжные интеграции** — Tinkoff/Sber/YooMoney SDK вместо stub.
 4. **E2E / интеграционные тесты** — Docker Compose + тесты на Go и Node.
 5. **CI/CD** — GitHub Actions: lint, test, build, push images.
 
-При следующем запросе уточнить, какое направление приоритетно, или продолжить по порядку из instructions.md.
+При следующем запросе уточнить, какое направление приоритетно.
 
 ---
 

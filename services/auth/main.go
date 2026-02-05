@@ -21,6 +21,7 @@ import (
 	httphandler "github.com/ridehail/auth/internal/delivery/http"
 	"github.com/ridehail/auth/internal/infra/bcrypt"
 	"github.com/ridehail/auth/internal/infra/jwt"
+	"github.com/ridehail/auth/internal/infra/oauth"
 	"github.com/ridehail/auth/internal/infra/pg"
 	"github.com/ridehail/auth/internal/infra/redis"
 	"github.com/ridehail/auth/internal/usecase"
@@ -33,11 +34,34 @@ func main() {
 	log := logger.Default(serviceName)
 	log.Info("starting auth service")
 
+	// Configuration
 	port := getEnv("PORT", "8080")
 	pgDSN := getEnv("PG_DSN", "postgres://ridehail:ridehail_secret@localhost:5432/ridehail?sslmode=disable")
 	jwtSecret := getEnv("JWT_SECRET", "dev-secret-change-in-production")
 	redisAddr := getEnv("REDIS_ADDR", "")
 	otlpEndpoint := getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+
+	// OAuth configuration
+	baseURL := getEnv("BASE_URL", "http://localhost:8080")
+	frontendURL := getEnv("FRONTEND_URL", "") // Where to redirect after OAuth
+
+	oauthCfg := oauth.Config{
+		Google: oauth.GoogleConfig{
+			ClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
+			ClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
+			RedirectURL:  baseURL + "/auth/oauth/google/callback",
+		},
+		Yandex: oauth.YandexConfig{
+			ClientID:     getEnv("YANDEX_CLIENT_ID", ""),
+			ClientSecret: getEnv("YANDEX_CLIENT_SECRET", ""),
+			RedirectURL:  baseURL + "/auth/oauth/yandex/callback",
+		},
+		VK: oauth.VKConfig{
+			ClientID:     getEnv("VK_CLIENT_ID", ""),
+			ClientSecret: getEnv("VK_CLIENT_SECRET", ""),
+			RedirectURL:  baseURL + "/auth/oauth/vk/callback",
+		},
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -87,11 +111,28 @@ func main() {
 		log.Info("redis ready")
 	}
 
+	// Initialize repositories
+	userRepo := pg.NewUserRepo(pool)
+	oauthRepo := pg.NewOAuthRepo(pool)
+
 	// Initialize use cases
 	jwtUtil := jwt.New(jwtSecret, 24*time.Hour, 7*24*time.Hour)
-	userRepo := pg.NewUserRepo(pool)
 	hasher := bcrypt.New(12)
 	authUC := usecase.NewAuthUseCase(userRepo, jwtUtil, hasher)
+	oauthUC := usecase.NewOAuthUseCase(userRepo, oauthRepo, jwtUtil, hasher)
+
+	// Initialize OAuth manager
+	oauthMgr := oauth.NewManager(oauthCfg)
+	stateMgr := oauth.NewStateManager()
+	oauthHandler := httphandler.NewOAuthHandler(oauthMgr, stateMgr, oauthUC, frontendURL)
+
+	// Log configured OAuth providers
+	providers := oauthMgr.ListProviders()
+	if len(providers) > 0 {
+		log.Info("oauth providers configured", "providers", providers)
+	} else {
+		log.Warn("no oauth providers configured")
+	}
 
 	// Setup Echo with observability middleware
 	e := echo.New()
@@ -100,16 +141,20 @@ func main() {
 	e.Use(echomw.RequestID())
 	e.Use(echoObservability(log, m))
 
-	// Routes
+	// Health & metrics
 	e.GET("/health", httphandler.Health)
 	e.GET("/ready", httphandler.Ready(pool))
 	e.GET("/metrics", echo.WrapHandler(m.Handler()))
+
+	// Auth routes
 	e.POST("/auth/register", httphandler.Register(authUC))
 	e.POST("/auth/login", httphandler.Login(authUC))
 	e.POST("/auth/refresh", httphandler.Refresh(authUC))
-	e.GET("/auth/oauth/google", httphandler.OAuthStub("google"))
-	e.GET("/auth/oauth/yandex", httphandler.OAuthStub("yandex"))
-	e.GET("/auth/oauth/vk", httphandler.OAuthStub("vk"))
+
+	// OAuth routes
+	e.GET("/auth/oauth/providers", oauthHandler.ListProviders())
+	e.GET("/auth/oauth/:provider", oauthHandler.Redirect())
+	e.GET("/auth/oauth/:provider/callback", oauthHandler.Callback())
 
 	// Start server
 	go func() {
@@ -152,10 +197,6 @@ func echoObservability(log *logger.Logger, m *metrics.Metrics) echo.MiddlewareFu
 			// Record metrics
 			duration := time.Since(start)
 			status := c.Response().Status
-			statusStr := http.StatusText(status)
-			if statusStr == "" {
-				statusStr = "unknown"
-			}
 			m.RecordRequest(method, path, string(rune(status/100)+'0')+"xx", duration)
 
 			// Log request (skip noisy endpoints)
@@ -177,13 +218,6 @@ func echoObservability(log *logger.Logger, m *metrics.Metrics) echo.MiddlewareFu
 			return err
 		}
 	}
-}
-
-func getEnv(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
 }
 
 func getEnv(key, fallback string) string {
