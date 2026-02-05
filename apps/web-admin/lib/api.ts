@@ -390,7 +390,6 @@ export async function fetchPromos(
   offset = 0,
   activeOnly = false
 ): Promise<PromosResponse> {
-  const token = getToken();
   const params = new URLSearchParams({
     limit: String(limit),
     offset: String(offset),
@@ -398,26 +397,24 @@ export async function fetchPromos(
   if (activeOnly) params.append("active_only", "true");
 
   const res = await fetch(`${PAYMENT_API}/api/v1/admin/promos?${params}`, {
-    headers: authHeaders(token),
+    headers: authHeaders(),
   });
   if (!res.ok) throw new Error("Failed to fetch promos");
   return res.json();
 }
 
 export async function fetchPromo(id: string): Promise<Promo> {
-  const token = getToken();
   const res = await fetch(`${PAYMENT_API}/api/v1/admin/promos/${id}`, {
-    headers: authHeaders(token),
+    headers: authHeaders(),
   });
   if (!res.ok) throw new Error("Failed to fetch promo");
   return res.json();
 }
 
 export async function createPromo(data: CreatePromoInput): Promise<Promo> {
-  const token = getToken();
   const res = await fetch(`${PAYMENT_API}/api/v1/admin/promos`, {
     method: "POST",
-    headers: authHeaders(token),
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Failed to create promo");
@@ -428,10 +425,9 @@ export async function updatePromo(
   id: string,
   data: UpdatePromoInput
 ): Promise<Promo> {
-  const token = getToken();
   const res = await fetch(`${PAYMENT_API}/api/v1/admin/promos/${id}`, {
     method: "PUT",
-    headers: authHeaders(token),
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Failed to update promo");
@@ -439,10 +435,9 @@ export async function updatePromo(
 }
 
 export async function deletePromo(id: string): Promise<void> {
-  const token = getToken();
   const res = await fetch(`${PAYMENT_API}/api/v1/admin/promos/${id}`, {
     method: "DELETE",
-    headers: authHeaders(token),
+    headers: authHeaders(),
   });
   if (!res.ok) throw new Error("Failed to delete promo");
 }
