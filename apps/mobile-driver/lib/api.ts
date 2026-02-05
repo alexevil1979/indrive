@@ -283,3 +283,32 @@ export const VERIFICATION_STATUSES = {
   approved: "Одобрено",
   rejected: "Отклонено",
 } as const;
+
+// ============ GEOLOCATION ============
+
+export async function updateDriverLocation(
+  token: string,
+  lat: number,
+  lng: number
+): Promise<void> {
+  const res = await fetch(`${config.geolocationApiUrl}/api/v1/drivers/location`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ lat, lng }),
+  });
+  if (!res.ok) {
+    // Silently fail for location updates
+    console.warn("Failed to update location");
+  }
+}
+
+export async function setDriverOnline(token: string, online: boolean): Promise<void> {
+  const res = await fetch(`${config.geolocationApiUrl}/api/v1/drivers/status`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ online }),
+  });
+  if (!res.ok) {
+    console.warn("Failed to set online status");
+  }
+}

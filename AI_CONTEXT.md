@@ -32,8 +32,8 @@
 
 ### Приложения
 - **web-admin** (Next.js 15, порт 3000): дашборд, поездки, **пользователи**, **верификация водителей (approve/reject)**, **платежи (refund)**, Tailwind, shadcn/ui
-- **mobile-passenger** (Expo): регистрация, табы, поездки, **экран оплаты (сохранённые карты, выбор провайдера)**, **интеграция платежей в поездку**, AuthContext, api/config
-- **mobile-driver** (Expo): профиль, поездки водителя, **экран верификации (загрузка документов, статус)**
+- **mobile-passenger** (Expo): **интерактивная карта (react-native-maps)** с выбором точек, маркеры водителей поблизости, экран оплаты, интеграция платежей в поездку, геолокация (expo-location)
+- **mobile-driver** (Expo): **карта с заявками**, переключатель «на линии», обновление позиции водителя, экран верификации (загрузка документов)
 
 ### Пакеты (packages)
 - **otel-go:** logger, tracing, metrics, middleware — общий observability для Go
@@ -60,13 +60,15 @@
 2. ~~**Верификация водителя**~~ — ✅ реализовано (user service: MinIO upload, domain, repo, usecase, HTTP handlers, admin review)
 3. ~~**Платёжные интеграции**~~ — ✅ реализовано (payment service: Tinkoff, YooMoney, Sber gateways, webhooks, refunds, saved cards)
 4. ~~**UI для web-admin**~~ — ✅ реализовано (панели: верификация водителей c approve/reject, платежи c refund, пользователи)
-5. ~~**Mobile apps**~~ — ✅ реализовано:
-   - mobile-driver: экран верификации с загрузкой документов (expo-image-picker)
-   - mobile-passenger: экран оплаты (сохранённые карты, провайдеры), интеграция платежей в экран поездки
-6. **E2E / интеграционные тесты** — Docker Compose + тесты на Go и Node.
-7. **CI/CD** — GitHub Actions: lint, test, build, push images.
-8. **Карты и геолокация** — интеграция react-native-maps или Yandex Maps в мобильные приложения.
+5. ~~**Mobile apps (платежи/верификация)**~~ — ✅ реализовано
+6. ~~**Карты и геолокация**~~ — ✅ реализовано:
+   - react-native-maps + expo-location в обоих мобильных приложениях
+   - mobile-passenger: интерактивная карта с выбором точек отправления/назначения, маркеры водителей поблизости
+   - mobile-driver: карта заявок, переключатель «на линии», автоматическое обновление позиции
+7. **E2E / интеграционные тесты** — Docker Compose + тесты на Go и Node.
+8. **CI/CD** — GitHub Actions: lint, test, build, push images.
 9. **Push-уведомления** — Firebase Cloud Messaging интеграция.
+10. **Чат пассажир-водитель** — WebSocket интеграция в мобильные приложения.
 
 При следующем запросе уточнить, какое направление приоритетно.
 

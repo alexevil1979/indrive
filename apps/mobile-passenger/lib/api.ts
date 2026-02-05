@@ -303,3 +303,27 @@ export async function confirmCashPayment(token: string, rideId: string): Promise
   }
   return res.json();
 }
+
+// ============ GEOLOCATION ============
+
+export type NearbyDriver = {
+  driver_id: string;
+  lat: number;
+  lng: number;
+  distance: number; // meters
+};
+
+export async function getNearbyDrivers(
+  token: string,
+  lat: number,
+  lng: number,
+  radius: number = 5000 // meters
+): Promise<NearbyDriver[]> {
+  const res = await fetch(
+    `${config.geolocationApiUrl}/api/v1/drivers/nearby?lat=${lat}&lng=${lng}&radius=${radius}`,
+    { headers: authHeaders(token) }
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.drivers ?? [];
+}

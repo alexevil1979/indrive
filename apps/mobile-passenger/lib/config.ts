@@ -14,4 +14,7 @@ export const config = {
   paymentApiUrl:
     (typeof process !== "undefined" && process.env?.EXPO_PUBLIC_PAYMENT_API_URL) ||
     "http://localhost:8084",
+  geolocationApiUrl:
+    (typeof process !== "undefined" && process.env?.EXPO_PUBLIC_GEOLOCATION_API_URL) ||
+    "http://localhost:8082",
 } as const;
