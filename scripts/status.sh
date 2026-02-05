@@ -62,7 +62,7 @@ else
 fi
 
 # Web Admin
-if pgrep -f "next start" > /dev/null 2>&1; then
+if pgrep -f "next-server" > /dev/null 2>&1 || pgrep -f "next start" > /dev/null 2>&1; then
     echo -e "  web-admin (порт $PORT_WEBADMIN): ${GREEN}OK${NC}"
 else
     echo -e "  web-admin (порт $PORT_WEBADMIN): ${RED}НЕ ЗАПУЩЕН${NC}"
