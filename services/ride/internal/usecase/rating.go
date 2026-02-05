@@ -21,11 +21,11 @@ type RatingRepo interface {
 // RatingUseCase handles rating business logic
 type RatingUseCase struct {
 	ratingRepo RatingRepo
-	rideRepo   RideRepo // To validate ride exists and is completed
+	rideRepo   RideRepository // To validate ride exists and is completed
 }
 
 // NewRatingUseCase creates a new rating use case
-func NewRatingUseCase(ratingRepo RatingRepo, rideRepo RideRepo) *RatingUseCase {
+func NewRatingUseCase(ratingRepo RatingRepo, rideRepo RideRepository) *RatingUseCase {
 	return &RatingUseCase{
 		ratingRepo: ratingRepo,
 		rideRepo:   rideRepo,
