@@ -31,7 +31,7 @@
 - **notification** (8085): device tokens, push (Firebase stub), чат WebSocket /ws/chat, /metrics (prom-client), pino логи
 
 ### Приложения
-- **web-admin** (Next.js 15, порт 3000): дашборд, список поездок, пользователи (stub), Tailwind, shadcn/ui
+- **web-admin** (Next.js 15, порт 3000): дашборд, поездки, **пользователи**, **верификация водителей (approve/reject)**, **платежи (refund)**, Tailwind, shadcn/ui
 - **mobile-passenger** (Expo): регистрация, табы, поездки, экран поездки, AuthContext, api/config
 - **mobile-driver** (Expo): профиль, поездки водителя
 
@@ -59,9 +59,10 @@
 1. ~~**OAuth2 (Google/Yandex/VK)**~~ — ✅ реализовано (auth service)
 2. ~~**Верификация водителя**~~ — ✅ реализовано (user service: MinIO upload, domain, repo, usecase, HTTP handlers, admin review)
 3. ~~**Платёжные интеграции**~~ — ✅ реализовано (payment service: Tinkoff, YooMoney, Sber gateways, webhooks, refunds, saved cards)
-4. **E2E / интеграционные тесты** — Docker Compose + тесты на Go и Node.
-5. **CI/CD** — GitHub Actions: lint, test, build, push images.
-6. **UI для web-admin** — панели: верификация водителей, платежи, пользователи.
+4. ~~**UI для web-admin**~~ — ✅ реализовано (панели: верификация водителей c approve/reject, платежи c refund, пользователи)
+5. **E2E / интеграционные тесты** — Docker Compose + тесты на Go и Node.
+6. **CI/CD** — GitHub Actions: lint, test, build, push images.
+7. **Mobile apps** — интеграция платежей и верификации в мобильные приложения.
 
 При следующем запросе уточнить, какое направление приоритетно.
 
