@@ -1,0 +1,10 @@
+go 1.23
+
+use (
+	./packages/otel-go
+	./services/auth
+	./services/user
+	./services/geolocation
+	./services/ride
+	./services/payment
+)

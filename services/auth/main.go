@@ -5,14 +5,18 @@ package main
 
 import (
 	"context"
-	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	echomw "github.com/labstack/echo/v4/middleware"
+
+	"github.com/alexevil1979/indrive/packages/otel-go/logger"
+	"github.com/alexevil1979/indrive/packages/otel-go/metrics"
+	"github.com/alexevil1979/indrive/packages/otel-go/tracing"
 
 	httphandler "github.com/ridehail/auth/internal/delivery/http"
 	"github.com/ridehail/auth/internal/infra/bcrypt"
@@ -22,52 +26,84 @@ import (
 	"github.com/ridehail/auth/internal/usecase"
 )
 
+const serviceName = "auth"
+
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	slog.SetDefault(logger)
+	// Initialize structured JSON logger
+	log := logger.Default(serviceName)
+	log.Info("starting auth service")
 
 	port := getEnv("PORT", "8080")
 	pgDSN := getEnv("PG_DSN", "postgres://ridehail:ridehail_secret@localhost:5432/ridehail?sslmode=disable")
 	jwtSecret := getEnv("JWT_SECRET", "dev-secret-change-in-production")
 	redisAddr := getEnv("REDIS_ADDR", "")
+	otlpEndpoint := getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	// Initialize OpenTelemetry tracing
+	tracerProvider, err := tracing.Init(ctx, tracing.Config{
+		ServiceName:    serviceName,
+		ServiceVersion: "0.1.0",
+		Environment:    getEnv("ENV", "development"),
+		OTLPEndpoint:   otlpEndpoint,
+		Enabled:        otlpEndpoint != "",
+	})
+	if err != nil {
+		log.Error("tracing init", "error", err)
+		os.Exit(1)
+	}
+	defer tracerProvider.Shutdown(context.Background())
+
+	// Initialize Prometheus metrics
+	m := metrics.New(metrics.Config{ServiceName: serviceName})
+
+	// Connect to PostgreSQL
 	pool, err := pg.Connect(ctx, pgDSN)
 	if err != nil {
-		slog.Error("postgres connect", "error", err)
+		log.Error("postgres connect", "error", err)
 		os.Exit(1)
 	}
 	defer pool.Close()
 	if err := pg.EnsurePostGIS(ctx, pool); err != nil {
-		slog.Error("postgis check", "error", err)
+		log.Error("postgis check", "error", err)
 		os.Exit(1)
 	}
 	if err := pg.Migrate(ctx, pool); err != nil {
-		slog.Error("migrate", "error", err)
+		log.Error("migrate", "error", err)
 		os.Exit(1)
 	}
-	slog.Info("postgres + PostGIS + migrations ready")
+	log.Info("postgres + PostGIS + migrations ready")
 
+	// Connect to Redis (optional)
 	rdb, err := redis.New(redisAddr)
 	if err != nil {
-		slog.Error("redis connect", "error", err)
+		log.Error("redis connect", "error", err)
 		os.Exit(1)
 	}
 	if rdb != nil {
 		defer rdb.Close()
-		slog.Info("redis ready")
+		log.Info("redis ready")
 	}
 
+	// Initialize use cases
 	jwtUtil := jwt.New(jwtSecret, 24*time.Hour, 7*24*time.Hour)
 	userRepo := pg.NewUserRepo(pool)
 	hasher := bcrypt.New(12)
 	authUC := usecase.NewAuthUseCase(userRepo, jwtUtil, hasher)
 
+	// Setup Echo with observability middleware
 	e := echo.New()
-	e.Use(middleware.Recover(), middleware.Logger(), middleware.RequestID())
+	e.HideBanner = true
+	e.Use(echomw.Recover())
+	e.Use(echomw.RequestID())
+	e.Use(echoObservability(log, m))
+
+	// Routes
 	e.GET("/health", httphandler.Health)
 	e.GET("/ready", httphandler.Ready(pool))
+	e.GET("/metrics", echo.WrapHandler(m.Handler()))
 	e.POST("/auth/register", httphandler.Register(authUC))
 	e.POST("/auth/login", httphandler.Login(authUC))
 	e.POST("/auth/refresh", httphandler.Refresh(authUC))
@@ -75,23 +111,79 @@ func main() {
 	e.GET("/auth/oauth/yandex", httphandler.OAuthStub("yandex"))
 	e.GET("/auth/oauth/vk", httphandler.OAuthStub("vk"))
 
+	// Start server
 	go func() {
-		if err := e.Start(":" + port); err != nil && err != echo.ErrServerClosed {
-			slog.Error("server", "error", err)
+		log.Info("listening", "port", port)
+		if err := e.Start(":" + port); err != nil && err != http.ErrServerClosed {
+			log.Error("server", "error", err)
 			os.Exit(1)
 		}
 	}()
 
+	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	slog.Info("shutting down...")
+	log.Info("shutting down...")
 	graceCtx, graceCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer graceCancel()
 	if err := e.Shutdown(graceCtx); err != nil {
-		slog.Error("shutdown", "error", err)
+		log.Error("shutdown", "error", err)
 	}
-	slog.Info("auth service stopped")
+	log.Info("auth service stopped")
+}
+
+// echoObservability adds tracing, metrics and logging to Echo requests.
+func echoObservability(log *logger.Logger, m *metrics.Metrics) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			start := time.Now()
+			req := c.Request()
+			path := req.URL.Path
+			method := req.Method
+
+			// Track active requests
+			m.IncActiveRequests(method, path)
+			defer m.DecActiveRequests(method, path)
+
+			// Execute handler
+			err := next(c)
+
+			// Record metrics
+			duration := time.Since(start)
+			status := c.Response().Status
+			statusStr := http.StatusText(status)
+			if statusStr == "" {
+				statusStr = "unknown"
+			}
+			m.RecordRequest(method, path, string(rune(status/100)+'0')+"xx", duration)
+
+			// Log request (skip noisy endpoints)
+			if path != "/health" && path != "/ready" && path != "/metrics" {
+				log.InfoContext(req.Context(), "http_request",
+					"method", method,
+					"path", path,
+					"status", status,
+					"duration_ms", duration.Milliseconds(),
+					"request_id", c.Response().Header().Get(echo.HeaderXRequestID),
+				)
+			}
+
+			// Record errors
+			if status >= 500 {
+				m.RecordError("http_5xx")
+			}
+
+			return err
+		}
+	}
+}
+
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
 
 func getEnv(key, fallback string) string {

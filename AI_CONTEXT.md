@@ -8,25 +8,35 @@
 
 ### Инфраструктура
 - **Monorepo:** Turborepo + pnpm workspaces, Node ≥20, Go 1.23+
-- **infra/docker-compose.yml:** PostgreSQL 16 (PostGIS), Redis 7, MinIO, Zookeeper, Kafka
+- **go.work:** объединяет все Go-модули (services + packages/otel-go)
+- **infra/docker-compose.yml:** PostgreSQL 16 (PostGIS), Redis 7, MinIO, Zookeeper, Kafka, **Prometheus**, **Grafana**, **Jaeger**
 - **infra/k8s:** namespace.yaml (базовый манифест)
+- **infra/prometheus:** prometheus.yml с job'ами для всех сервисов
+- **infra/grafana:** provisioning (datasources: Prometheus + Jaeger, дашборд RideHail Overview)
+
+### Observability (внедрено)
+- **Структурированные JSON-логи:** slog (Go), pino (Node)
+- **OpenTelemetry трассировка:** packages/otel-go/tracing, инициализация во всех Go-сервисах; OTEL_EXPORTER_OTLP_ENDPOINT → Jaeger
+- **Prometheus метрики:** `/metrics` во всех сервисах (Go: packages/otel-go/metrics, Node: prom-client)
+- **Grafana:** datasources provisioned, базовый дашборд ridehail-overview
 
 ### Backend-сервисы (Go)
-- **auth** (порт 8080): регистрация, логин, refresh, JWT, миграции users/profiles, Redis опционально
-- **user** (8081): профили, `/api/v1/users/me`, заглушка верификации водителя
-- **geolocation** (8082): обновление позиции водителя, nearest drivers (Redis GEO), WebSocket `/ws/tracking`
-- **ride** (8083): создание поездки, ставки, принятие ставки, статусы, Kafka-события, admin `/api/v1/admin/rides`
-- **payment** (8084): checkout (cash/card stub), JWT
+- **auth** (порт 8080): регистрация, логин, refresh, JWT, миграции, /metrics
+- **user** (8081): профили, /api/v1/users/me, /metrics
+- **geolocation** (8082): позиция водителя, nearest drivers (Redis GEO), WebSocket /ws/tracking, /metrics
+- **ride** (8083): поездки, ставки, Kafka-события, admin /api/v1/admin/rides, /metrics
+- **payment** (8084): checkout (cash/card stub), /metrics
 
 ### Backend-сервисы (Node.js)
-- **notification** (8085): device tokens, push (Firebase stub), чат (WebSocket `/ws/chat`), история сообщений, Kafka consumer stub для ride events → push
+- **notification** (8085): device tokens, push (Firebase stub), чат WebSocket /ws/chat, /metrics (prom-client), pino логи
 
 ### Приложения
 - **web-admin** (Next.js 15, порт 3000): дашборд, список поездок, пользователи (stub), Tailwind, shadcn/ui
 - **mobile-passenger** (Expo): регистрация, табы, поездки, экран поездки, AuthContext, api/config
-- **mobile-driver** (Expo): то же, профиль, поездки водителя
+- **mobile-driver** (Expo): профиль, поездки водителя
 
 ### Пакеты (packages)
+- **otel-go:** logger, tracing, metrics, middleware — общий observability для Go
 - **types:** ride, user
 - **ui:** Button, Card, Input, Badge, MapPlaceholder
 - **utils:** format, validation
@@ -39,20 +49,20 @@
 
 ### Репозиторий
 - **origin:** https://github.com/alexevil1979/indrive.git, ветка **main**
-- Последний коммит: документация по установке на VPS (Nginx и Apache)
 
 ---
 
 ## Следующий шаг
 
-**Observability (наблюдаемость):** внедрить из заявленного стека (instructions.md) и довести до рабочего состояния.
+**Выбор одного из направлений:**
 
-1. **Структурированные JSON-логи** во всех Go-сервисах и при необходимости в notification (Node) — единый формат (timestamp, level, service, msg, trace_id при наличии).
-2. **OpenTelemetry** — трассировка: инициализация в каждом Go-сервисе и в notification, проброс trace_id в логах и между сервисами (HTTP-заголовки).
-3. **Prometheus** — метрики: `/metrics` в auth, user, geolocation, ride, payment, notification (счётчики запросов, латентности, ошибок).
-4. **Grafana** — дашборды и алерты по логам/метрикам (опционально в docker-compose или отдельно).
+1. **OAuth2 (Google/Yandex/VK)** — реальная авторизация через провайдеров (сейчас stubs 501).
+2. **Верификация водителя** — загрузка документов в MinIO, статус верификации в БД.
+3. **Платёжные интеграции** — Tinkoff/Sber/YooMoney SDK вместо stub.
+4. **E2E / интеграционные тесты** — Docker Compose + тесты на Go и Node.
+5. **CI/CD** — GitHub Actions: lint, test, build, push images.
 
-После этого можно переходить к: OAuth2 (Google/Yandex/VK), верификация водителя (загрузка документов), платёжные интеграции (Tinkoff/Sber/YooMoney) или E2E/интеграционным тестам.
+При следующем запросе уточнить, какое направление приоритетно, или продолжить по порядку из instructions.md.
 
 ---
 

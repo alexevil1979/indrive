@@ -3,8 +3,11 @@ module github.com/ridehail/ride
 go 1.23
 
 require (
+	github.com/alexevil1979/indrive/packages/otel-go v0.0.0
 	github.com/IBM/sarama v1.43.3
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/jackc/pgx/v5 v5.7.1
 	github.com/labstack/echo/v4 v4.12.0
 )
+
+replace github.com/alexevil1979/indrive/packages/otel-go => ../../packages/otel-go

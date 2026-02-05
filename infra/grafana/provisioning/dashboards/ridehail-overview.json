@@ -1,0 +1,113 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "reqps" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "legend": { "displayMode": "list" } },
+      "targets": [
+        {
+          "expr": "sum(rate(ridehail_auth_http_requests_total[1m])) by (method)",
+          "legendFormat": "auth {{method}}"
+        },
+        {
+          "expr": "sum(rate(ridehail_ride_http_requests_total[1m])) by (method)",
+          "legendFormat": "ride {{method}}"
+        },
+        {
+          "expr": "sum(rate(ridehail_user_http_requests_total[1m])) by (method)",
+          "legendFormat": "user {{method}}"
+        }
+      ],
+      "title": "Requests per second",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "options": { "legend": { "displayMode": "list" } },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(ridehail_auth_http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "auth p95"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(ridehail_ride_http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "ride p95"
+        }
+      ],
+      "title": "Request latency p95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "options": {},
+      "targets": [
+        {
+          "expr": "sum(ridehail_auth_errors_total) by (type)",
+          "legendFormat": "auth {{type}}"
+        },
+        {
+          "expr": "sum(ridehail_ride_errors_total) by (type)",
+          "legendFormat": "ride {{type}}"
+        },
+        {
+          "expr": "sum(ridehail_notification_errors_total) by (type)",
+          "legendFormat": "notification {{type}}"
+        }
+      ],
+      "title": "Errors total",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 4,
+      "options": {},
+      "targets": [
+        {
+          "expr": "ridehail_notification_ws_connections_active",
+          "legendFormat": "WebSocket connections"
+        }
+      ],
+      "title": "Active WebSocket connections",
+      "type": "stat"
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["ridehail"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "RideHail Overview",
+  "uid": "ridehail-overview",
+  "version": 1
+}
