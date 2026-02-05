@@ -12,6 +12,11 @@ import (
 const UserIDKey = "user_id"
 const UserRoleKey = "user_role"
 
+// errorResponse returns a standardized error response map
+func errorResponse(msg string) map[string]string {
+	return map[string]string{"error": msg}
+}
+
 type JWTValidator interface {
 	Validate(tokenString string) (*jwt.Claims, error)
 }
