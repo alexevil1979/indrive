@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alexevil1979/indrive/services/payment/internal/domain"
+	"github.com/ridehail/payment/internal/domain"
 )
 
 // PromoRepo handles promo persistence

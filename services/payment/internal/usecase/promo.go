@@ -6,7 +6,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/alexevil1979/indrive/services/payment/internal/domain"
+	"github.com/ridehail/payment/internal/domain"
 )
 
 // PromoRepo defines promo repository interface

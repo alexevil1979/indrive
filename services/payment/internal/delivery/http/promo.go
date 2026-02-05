@@ -7,8 +7,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"github.com/alexevil1979/indrive/services/payment/internal/domain"
-	"github.com/alexevil1979/indrive/services/payment/internal/usecase"
+	"github.com/ridehail/payment/internal/domain"
+	"github.com/ridehail/payment/internal/usecase"
 )
 
 // PromoHandler handles promo HTTP endpoints
