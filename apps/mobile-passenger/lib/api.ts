@@ -421,3 +421,60 @@ export async function getRatingTags(
   const data = await res.json();
   return data.tags ?? [];
 }
+
+// ============ PROMO CODES ============
+
+export type Promo = {
+  code: string;
+  description: string;
+  type: "percent" | "fixed";
+  value: number;
+  min_order_value: number;
+  max_discount: number;
+};
+
+export type PromoResult = {
+  valid: boolean;
+  promo?: Promo;
+  discount: number;
+  final_price: number;
+  error?: string;
+};
+
+export async function validatePromo(
+  token: string,
+  code: string,
+  orderAmount: number
+): Promise<PromoResult> {
+  const res = await fetch(`${config.paymentApiUrl}/api/v1/promos/validate`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ code, order_amount: orderAmount }),
+  });
+  if (!res.ok) throw new Error("Failed to validate promo");
+  return res.json();
+}
+
+export async function applyPromo(
+  token: string,
+  code: string,
+  rideId: string,
+  orderAmount: number
+): Promise<PromoResult> {
+  const res = await fetch(`${config.paymentApiUrl}/api/v1/promos/apply`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ code, ride_id: rideId, order_amount: orderAmount }),
+  });
+  if (!res.ok) throw new Error("Failed to apply promo");
+  return res.json();
+}
+
+export async function getActivePromos(token: string): Promise<Promo[]> {
+  const res = await fetch(`${config.paymentApiUrl}/api/v1/promos`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.promos ?? [];
+}

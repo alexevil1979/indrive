@@ -334,6 +334,121 @@ export const TAG_LABELS: Record<string, string> = {
   clean: "Аккуратный",
 };
 
+// ============ PROMO CODES ============
+
+export type Promo = {
+  id: string;
+  code: string;
+  description: string;
+  type: "percent" | "fixed";
+  value: number;
+  min_order_value: number;
+  max_discount: number;
+  usage_limit: number;
+  usage_count: number;
+  per_user_limit: number;
+  is_active: boolean;
+  starts_at: string;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PromosResponse = {
+  promos: Promo[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type CreatePromoInput = {
+  code: string;
+  description?: string;
+  type: "percent" | "fixed";
+  value: number;
+  min_order_value?: number;
+  max_discount?: number;
+  usage_limit?: number;
+  per_user_limit?: number;
+  starts_at?: string;
+  expires_at?: string;
+};
+
+export type UpdatePromoInput = {
+  description?: string;
+  type?: "percent" | "fixed";
+  value?: number;
+  min_order_value?: number;
+  max_discount?: number;
+  usage_limit?: number;
+  per_user_limit?: number;
+  is_active?: boolean;
+  starts_at?: string;
+  expires_at?: string;
+};
+
+export async function fetchPromos(
+  limit = 20,
+  offset = 0,
+  activeOnly = false
+): Promise<PromosResponse> {
+  const token = getToken();
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  if (activeOnly) params.append("active_only", "true");
+
+  const res = await fetch(`${PAYMENT_API}/api/v1/admin/promos?${params}`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Failed to fetch promos");
+  return res.json();
+}
+
+export async function fetchPromo(id: string): Promise<Promo> {
+  const token = getToken();
+  const res = await fetch(`${PAYMENT_API}/api/v1/admin/promos/${id}`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Failed to fetch promo");
+  return res.json();
+}
+
+export async function createPromo(data: CreatePromoInput): Promise<Promo> {
+  const token = getToken();
+  const res = await fetch(`${PAYMENT_API}/api/v1/admin/promos`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to create promo");
+  return res.json();
+}
+
+export async function updatePromo(
+  id: string,
+  data: UpdatePromoInput
+): Promise<Promo> {
+  const token = getToken();
+  const res = await fetch(`${PAYMENT_API}/api/v1/admin/promos/${id}`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to update promo");
+  return res.json();
+}
+
+export async function deletePromo(id: string): Promise<void> {
+  const token = getToken();
+  const res = await fetch(`${PAYMENT_API}/api/v1/admin/promos/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Failed to delete promo");
+}
+
 // ============ HELPERS ============
 
 export function formatDate(dateStr: string): string {

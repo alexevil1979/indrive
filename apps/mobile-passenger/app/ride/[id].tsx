@@ -12,6 +12,7 @@ import {
   RefreshControl,
   Switch,
   Linking,
+  TextInput,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
@@ -27,10 +28,13 @@ import {
   listPaymentMethods,
   getAvailableProviders,
   confirmCashPayment,
+  validatePromo,
+  applyPromo,
   PAYMENT_PROVIDERS,
   type Ride,
   type Bid,
   type PaymentMethod,
+  type PromoResult,
 } from "../../lib/api";
 
 const statusLabel: Record<string, string> = {
@@ -60,6 +64,11 @@ export default function RideDetailScreen() {
   const [selectedProvider, setSelectedProvider] = useState<string>("tinkoff");
   const [saveCard, setSaveCard] = useState(true);
   const [paying, setPaying] = useState(false);
+
+  // Promo state
+  const [promoCode, setPromoCode] = useState("");
+  const [promoResult, setPromoResult] = useState<PromoResult | null>(null);
+  const [promoLoading, setPromoLoading] = useState(false);
 
   const load = async () => {
     if (!token || !id) return;
@@ -138,10 +147,39 @@ export default function RideDetailScreen() {
     ]);
   };
 
+  const handleApplyPromo = async () => {
+    if (!token || !id || !ride?.price || !promoCode.trim()) return;
+    setPromoLoading(true);
+    try {
+      const result = await validatePromo(token, promoCode.trim(), ride.price);
+      setPromoResult(result);
+      if (!result.valid) {
+        Alert.alert("Ошибка", result.error ?? "Промокод недействителен");
+      }
+    } catch (e) {
+      Alert.alert("Ошибка", e instanceof Error ? e.message : "Не удалось проверить промокод");
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setPromoCode("");
+    setPromoResult(null);
+  };
+
+  // Calculate final price with promo
+  const finalPrice = promoResult?.valid ? promoResult.final_price : ride?.price ?? 0;
+
   const handlePayment = async () => {
     if (!token || !id || !ride?.price) return;
     setPaying(true);
     try {
+      // Apply promo if valid
+      if (promoResult?.valid && promoCode.trim()) {
+        await applyPromo(token, promoCode.trim(), id, ride.price);
+      }
+
       if (selectedPaymentType === "cash") {
         // Cash payment — just mark confirmed (driver receives cash)
         await confirmCashPayment(token, id);
@@ -151,7 +189,7 @@ export default function RideDetailScreen() {
         // Card payment
         const intent = await createPayment(token, {
           ride_id: id,
-          amount: ride.price,
+          amount: finalPrice,
           method: "card",
           provider: selectedMethod ? selectedMethod.provider : selectedProvider,
           payment_method_id: selectedMethod?.id,
@@ -383,6 +421,60 @@ export default function RideDetailScreen() {
             )}
           </Card>
 
+          {/* Promo code */}
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>🎁 Промокод</Text>
+            {promoResult?.valid ? (
+              <View style={styles.promoApplied}>
+                <View style={styles.promoAppliedInfo}>
+                  <Text style={styles.promoAppliedCode}>{promoCode.toUpperCase()}</Text>
+                  <Text style={styles.promoAppliedDiscount}>
+                    Скидка: {promoResult.discount.toFixed(0)} ₽
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={handleRemovePromo} style={styles.promoRemoveBtn}>
+                  <Text style={styles.promoRemoveBtnText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.promoInputRow}>
+                <TextInput
+                  style={styles.promoInput}
+                  placeholder="Введите промокод"
+                  placeholderTextColor="#94a3b8"
+                  value={promoCode}
+                  onChangeText={setPromoCode}
+                  autoCapitalize="characters"
+                />
+                <TouchableOpacity
+                  style={[styles.promoApplyBtn, !promoCode.trim() && styles.promoApplyBtnDisabled]}
+                  onPress={handleApplyPromo}
+                  disabled={!promoCode.trim() || promoLoading}
+                >
+                  <Text style={styles.promoApplyBtnText}>
+                    {promoLoading ? "..." : "Применить"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {promoResult?.valid && (
+              <View style={styles.promoSummary}>
+                <View style={styles.promoSummaryRow}>
+                  <Text style={styles.promoSummaryLabel}>Стоимость поездки:</Text>
+                  <Text style={styles.promoSummaryValue}>{ride.price} ₽</Text>
+                </View>
+                <View style={styles.promoSummaryRow}>
+                  <Text style={styles.promoSummaryLabel}>Скидка:</Text>
+                  <Text style={styles.promoSummaryDiscount}>−{promoResult.discount.toFixed(0)} ₽</Text>
+                </View>
+                <View style={[styles.promoSummaryRow, styles.promoSummaryTotal]}>
+                  <Text style={styles.promoSummaryTotalLabel}>Итого:</Text>
+                  <Text style={styles.promoSummaryTotalValue}>{promoResult.final_price.toFixed(0)} ₽</Text>
+                </View>
+              </View>
+            )}
+          </Card>
+
           {/* Chat button */}
           <Card style={styles.card}>
             <TouchableOpacity
@@ -408,7 +500,7 @@ export default function RideDetailScreen() {
             {ride.status === "in_progress" ? (
               <>
                 <Button
-                  title={paying ? "Обработка..." : `Оплатить ${ride.price} ₽`}
+                  title={paying ? "Обработка..." : `Оплатить ${finalPrice.toFixed(0)} ₽`}
                   onPress={handlePayment}
                   variant="primary"
                   disabled={paying}
@@ -507,4 +599,24 @@ const styles = StyleSheet.create({
   rateButtonIcon: { fontSize: 24, marginRight: 12 },
   rateButtonText: { flex: 1, fontSize: 16, fontWeight: "600", color: "#92400e" },
   rateButtonArrow: { fontSize: 18, color: "#92400e" },
+  // Promo styles
+  promoInputRow: { flexDirection: "row", gap: 8 },
+  promoInput: { flex: 1, height: 44, backgroundColor: "#f8fafc", borderRadius: 8, paddingHorizontal: 14, fontSize: 14, borderWidth: 1, borderColor: "#e2e8f0", textTransform: "uppercase" },
+  promoApplyBtn: { paddingHorizontal: 16, height: 44, backgroundColor: "#2563eb", borderRadius: 8, justifyContent: "center", alignItems: "center" },
+  promoApplyBtnDisabled: { backgroundColor: "#94a3b8" },
+  promoApplyBtnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
+  promoApplied: { flexDirection: "row", alignItems: "center", backgroundColor: "#dcfce7", borderRadius: 8, padding: 12 },
+  promoAppliedInfo: { flex: 1 },
+  promoAppliedCode: { fontSize: 16, fontWeight: "700", color: "#16a34a" },
+  promoAppliedDiscount: { fontSize: 13, color: "#15803d", marginTop: 2 },
+  promoRemoveBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#fff", justifyContent: "center", alignItems: "center" },
+  promoRemoveBtnText: { fontSize: 14, color: "#64748b" },
+  promoSummary: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#e2e8f0" },
+  promoSummaryRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
+  promoSummaryLabel: { fontSize: 14, color: "#64748b" },
+  promoSummaryValue: { fontSize: 14, color: "#0f172a" },
+  promoSummaryDiscount: { fontSize: 14, color: "#16a34a", fontWeight: "500" },
+  promoSummaryTotal: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: "#e2e8f0" },
+  promoSummaryTotalLabel: { fontSize: 16, fontWeight: "600", color: "#0f172a" },
+  promoSummaryTotalValue: { fontSize: 18, fontWeight: "700", color: "#2563eb" },
 });

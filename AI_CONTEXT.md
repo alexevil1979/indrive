@@ -25,15 +25,15 @@
 - **user** (8081): профили, **верификация водителя (MinIO upload)**, /api/v1/users/me, /api/v1/verification/*, /api/v1/admin/verifications/*, /metrics
 - **geolocation** (8082): позиция водителя, nearest drivers (Redis GEO), WebSocket /ws/tracking, /metrics
 - **ride** (8083): поездки, ставки, Kafka-события, admin /api/v1/admin/rides, /metrics
-- **payment** (8084): checkout (**Tinkoff, YooMoney, Sber** + cash), refund, saved cards, webhooks, /metrics
+- **payment** (8084): checkout (**Tinkoff, YooMoney, Sber** + cash), refund, saved cards, webhooks, **промокоды**, /metrics
 
 ### Backend-сервисы (Node.js)
 - **notification** (8085): device tokens, **push (Firebase Admin SDK)**, чат WebSocket /ws/chat, **/api/v1/notifications/{new-bid,ride-status,new-ride,bid-accepted,ride-cancelled}**, /metrics (prom-client), pino логи
 
 ### Приложения
-- **web-admin** (Next.js 15, порт 3000): дашборд, поездки, пользователи, верификация, платежи, отзывы
-- **mobile-passenger** (Expo): карта, оплата, push, чат, рейтинги, **real-time трекинг водителя (WebSocket)**
-- **mobile-driver** (Expo): карта, верификация, push, чат, рейтинги, **стриминг позиции для пассажира**
+- **web-admin** (Next.js 15, порт 3000): дашборд, поездки, пользователи, верификация, платежи, **промокоды**, отзывы
+- **mobile-passenger** (Expo): карта, оплата, push, чат, рейтинги, real-time трекинг водителя, **промокоды**
+- **mobile-driver** (Expo): карта, верификация, push, чат, рейтинги, стриминг позиции для пассажира
 
 ### Пакеты (packages)
 - **otel-go:** logger, tracing, metrics, middleware — общий observability для Go
@@ -71,9 +71,17 @@
     - mobile-driver: useDriverTracking хук для стриминга позиции
     - mobile-passenger: useDriverTracking + DriverTrackingMap компонент
     - Интеграция в экраны поездки (статусы matched/in_progress)
-11. **E2E / интеграционные тесты** — Docker Compose + тесты на Go и Node.
-12. **CI/CD** — GitHub Actions: lint, test, build, push images.
-13. **Промокоды и скидки** — система промокодов для пассажиров.
+11. ~~**Промокоды и скидки**~~ — ✅ реализовано:
+    - Domain: Promo, UserPromo, PromoType (percent/fixed), PromoResult
+    - PostgreSQL: миграция 007_promos.up.sql (promos, user_promos, триггер increment_promo_usage)
+    - PromoRepo: CRUD, валидация, учёт использований
+    - PromoUseCase: ValidatePromo, ApplyPromo, админские операции
+    - HTTP handlers: /api/v1/promos/validate, /apply, /api/v1/admin/promos (CRUD)
+    - mobile-passenger: UI ввода/применения промокода на экране поездки, расчёт скидки
+    - web-admin: панель управления промокодами (создание, редактирование, активация)
+12. **E2E / интеграционные тесты** — Docker Compose + тесты на Go и Node.
+13. **CI/CD** — GitHub Actions: lint, test, build, push images.
+14. **Surge pricing** — динамическое ценообразование в зависимости от спроса.
 
 При следующем запросе уточнить, какое направление приоритетно.
 

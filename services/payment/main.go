@@ -129,7 +129,10 @@ func main() {
 	// Initialize use cases
 	jwtValidator := jwt.NewValidator(jwtSecret)
 	paymentRepo := pg.NewPaymentRepo(pool)
+	promoRepo := pg.NewPromoRepo(pool)
 	paymentUC := usecase.NewPaymentUseCase(paymentRepo, gwManager)
+	promoUC := usecase.NewPromoUseCase(promoRepo)
+	promoHandler := httphandler.NewPromoHandler(promoUC)
 
 	// Setup Echo
 	e := echo.New()
@@ -166,6 +169,19 @@ func main() {
 	api.GET("/payment-methods", httphandler.ListPaymentMethods(paymentUC))
 	api.DELETE("/payment-methods/:id", httphandler.DeletePaymentMethod(paymentUC))
 	api.POST("/payment-methods/:id/default", httphandler.SetDefaultPaymentMethod(paymentUC))
+
+	// Promo codes
+	api.GET("/promos", promoHandler.ListActivePromos)
+	api.POST("/promos/validate", promoHandler.ValidatePromo)
+	api.POST("/promos/apply", promoHandler.ApplyPromo)
+	api.GET("/promos/my", promoHandler.GetMyPromos)
+
+	// Admin promo management
+	api.GET("/admin/promos", promoHandler.ListPromos)
+	api.POST("/admin/promos", promoHandler.CreatePromo)
+	api.GET("/admin/promos/:id", promoHandler.GetPromo)
+	api.PUT("/admin/promos/:id", promoHandler.UpdatePromo)
+	api.DELETE("/admin/promos/:id", promoHandler.DeletePromo)
 
 	// Start server
 	go func() {

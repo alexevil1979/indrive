@@ -10,6 +10,7 @@ const nav = [
   { href: "/users", label: "Пользователи", icon: "👥" },
   { href: "/verifications", label: "Верификация", icon: "✅" },
   { href: "/payments", label: "Платежи", icon: "💳" },
+  { href: "/promos", label: "Промокоды", icon: "🎟️" },
   { href: "/ratings", label: "Отзывы", icon: "⭐" },
 ];
 

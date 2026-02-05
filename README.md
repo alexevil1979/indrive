@@ -6,10 +6,10 @@ inDrive-подобный сервис заказа поездок с торга�
 
 | Компонент       | Технология                                      |
 |-----------------|------------------------------------------------|
-| Backend         | Go 1.23+ (auth с OAuth2, user с верификацией, geolocation, ride, payment с Tinkoff/YooMoney/Sber) |
+| Backend         | Go 1.23+ (auth с OAuth2, user с верификацией, geolocation, ride, payment с Tinkoff/YooMoney/Sber + промокоды) |
 | Realtime        | Node.js (notification: push, chat, **driver tracking** WebSocket) |
-| Mobile          | React Native / Expo (карты, геолокация, платежи, верификация, push, чат, **рейтинги**) |
-| Web Admin       | Next.js 15, Tailwind, shadcn/ui (верификация, платежи, пользователи) |
+| Mobile          | React Native / Expo (карты, геолокация, платежи, верификация, push, чат, рейтинги, **промокоды**) |
+| Web Admin       | Next.js 15, Tailwind, shadcn/ui (верификация, платежи, пользователи, **промокоды**) |
 | DB              | PostgreSQL 16 + PostGIS                        |
 | Cache / GEO     | Redis 7                                         |
 | Broker          | Kafka (Confluent)                               |
@@ -30,7 +30,7 @@ indrive/
 │   ├── user/                # Go — профили, верификация водителя (MinIO)
 │   ├── geolocation/         # Go — трекинг, Redis GEO
 │   ├── ride/                # Go — поездки, ставки, Kafka
-│   ├── payment/             # Go — платежи (Tinkoff, YooMoney, Sber)
+│   ├── payment/             # Go — платежи (Tinkoff, YooMoney, Sber), промокоды
 │   └── notification/        # Node — push, chat
 ├── packages/
 │   ├── otel-go/             # Go — observability (logger, tracing, metrics)
