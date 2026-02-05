@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import {
   fetchPromos,
   createPromo,
@@ -29,7 +28,6 @@ const PROMO_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function PromosPage() {
-  const router = useRouter();
   const [promos, setPromos] = useState<Promo[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
