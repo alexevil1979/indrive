@@ -294,10 +294,9 @@ export async function fetchRatings(
   limit = 20,
   offset = 0
 ): Promise<RatingsResponse> {
-  const token = getToken();
   const res = await fetch(
     `${RIDE_API}/api/v1/admin/ratings?limit=${limit}&offset=${offset}`,
-    { headers: authHeaders(token) }
+    { headers: authHeaders() }
   );
   if (!res.ok) {
     throw new Error("Failed to fetch ratings");
@@ -309,10 +308,9 @@ export async function fetchUserRating(
   userId: string,
   role: "passenger" | "driver" = "driver"
 ): Promise<UserRating> {
-  const token = getToken();
   const res = await fetch(
     `${RIDE_API}/api/v1/users/${userId}/rating?role=${role}`,
-    { headers: authHeaders(token) }
+    { headers: authHeaders() }
   );
   if (!res.ok) {
     throw new Error("Failed to fetch user rating");
