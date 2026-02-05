@@ -17,4 +17,7 @@ export const config = {
   geolocationApiUrl:
     (typeof process !== "undefined" && process.env?.EXPO_PUBLIC_GEOLOCATION_API_URL) ||
     "http://localhost:8082",
+  notificationApiUrl:
+    (typeof process !== "undefined" && process.env?.EXPO_PUBLIC_NOTIFICATION_API_URL) ||
+    "http://localhost:8085",
 } as const;

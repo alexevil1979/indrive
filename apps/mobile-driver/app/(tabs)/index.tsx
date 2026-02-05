@@ -15,6 +15,7 @@ import {
 import { useRouter } from "expo-router";
 import { Card, Badge, Button } from "@ridehail/ui";
 import { useAuth } from "../../context/AuthContext";
+import { useNotifications } from "../../context/NotificationContext";
 import { listAvailableRides, setDriverOnline, type Ride } from "../../lib/api";
 import { DriverMap } from "../../components/DriverMap";
 
@@ -22,11 +23,11 @@ const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function AvailableRidesScreen() {
   const { token } = useAuth();
+  const { isOnline, setIsOnline } = useNotifications();
   const router = useRouter();
   const [rides, setRides] = useState<Ride[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [isOnline, setIsOnline] = useState(false);
   const [viewMode, setViewMode] = useState<"map" | "list">("map");
 
   const load = useCallback(async () => {

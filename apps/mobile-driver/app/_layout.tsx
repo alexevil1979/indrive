@@ -1,10 +1,11 @@
 /**
- * Root layout — AuthProvider, Stack (auth vs app)
+ * Root layout — AuthProvider, NotificationProvider, Stack (auth vs app)
  */
 import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "../context/AuthContext";
+import { NotificationProvider } from "../context/NotificationContext";
 
 function RootLayoutNav() {
   const { isSignedIn, isLoading } = useAuth();
@@ -42,7 +43,9 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <RootLayoutNav />
+      <NotificationProvider>
+        <RootLayoutNav />
+      </NotificationProvider>
     </AuthProvider>
   );
 }

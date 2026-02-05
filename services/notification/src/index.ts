@@ -92,7 +92,7 @@ app.post("/api/v1/device-tokens", async (req, res) => {
   res.json({ status: "ok" });
 });
 
-// Stub: send push to user (internal or test)
+// Generic: send push to user (internal or test)
 app.post("/api/v1/notifications/send", async (req, res) => {
   const { user_id, title, body, data } = req.body ?? {};
   if (!user_id || !title) {
@@ -100,6 +100,104 @@ app.post("/api/v1/notifications/send", async (req, res) => {
   }
   const count = await sendPushToUser(user_id, title, body ?? "", data);
   logger.info({ msg: "push_sent", user_id, count });
+  res.json({ sent: count });
+});
+
+// Notify passenger about new bid
+app.post("/api/v1/notifications/new-bid", async (req, res) => {
+  const { passenger_id, ride_id, bid_id, price, driver_name } = req.body ?? {};
+  if (!passenger_id || !ride_id) {
+    return res.status(400).json({ error: "passenger_id and ride_id required" });
+  }
+  const title = "Новая ставка! 🚗";
+  const body = driver_name 
+    ? `${driver_name} предложил ${price} ₽`
+    : `Водитель предложил ${price} ₽`;
+  const count = await sendPushToUser(passenger_id, title, body, {
+    type: "new_bid",
+    ride_id,
+    bid_id: bid_id ?? "",
+    price: String(price ?? ""),
+  });
+  logger.info({ msg: "new_bid_notification", passenger_id, ride_id, count });
+  res.json({ sent: count });
+});
+
+// Notify passenger about ride status change
+app.post("/api/v1/notifications/ride-status", async (req, res) => {
+  const { passenger_id, ride_id, status, driver_name } = req.body ?? {};
+  if (!passenger_id || !ride_id || !status) {
+    return res.status(400).json({ error: "passenger_id, ride_id and status required" });
+  }
+  
+  const statusMessages: Record<string, { title: string; body: string }> = {
+    matched: { title: "Водитель найден! 🎉", body: driver_name ? `${driver_name} принял вашу заявку` : "Водитель принял вашу заявку" },
+    driver_arrived: { title: "Водитель прибыл! 📍", body: "Водитель ожидает вас" },
+    in_progress: { title: "Поездка началась 🚗", body: "Приятной поездки!" },
+    completed: { title: "Поездка завершена ✅", body: "Спасибо за поездку!" },
+    cancelled: { title: "Поездка отменена", body: "Водитель отменил поездку" },
+  };
+  
+  const msg = statusMessages[status] ?? { title: "Статус поездки", body: `Статус изменён на: ${status}` };
+  const count = await sendPushToUser(passenger_id, msg.title, msg.body, {
+    type: "ride_status",
+    ride_id,
+    status,
+  });
+  logger.info({ msg: "ride_status_notification", passenger_id, ride_id, status, count });
+  res.json({ sent: count });
+});
+
+// Notify driver about new ride nearby
+app.post("/api/v1/notifications/new-ride", async (req, res) => {
+  const { driver_id, ride_id, from_address, to_address } = req.body ?? {};
+  if (!driver_id || !ride_id) {
+    return res.status(400).json({ error: "driver_id and ride_id required" });
+  }
+  const title = "Новая заявка поблизости! 📍";
+  const body = from_address ? `Откуда: ${from_address}` : "Нажмите, чтобы посмотреть";
+  const count = await sendPushToUser(driver_id, title, body, {
+    type: "new_ride",
+    ride_id,
+    from_address: from_address ?? "",
+    to_address: to_address ?? "",
+  });
+  logger.info({ msg: "new_ride_notification", driver_id, ride_id, count });
+  res.json({ sent: count });
+});
+
+// Notify driver about bid acceptance
+app.post("/api/v1/notifications/bid-accepted", async (req, res) => {
+  const { driver_id, ride_id, passenger_name, from_address } = req.body ?? {};
+  if (!driver_id || !ride_id) {
+    return res.status(400).json({ error: "driver_id and ride_id required" });
+  }
+  const title = "Ваша ставка принята! 🎉";
+  const body = from_address 
+    ? `Заберите пассажира: ${from_address}`
+    : "Откройте приложение для деталей";
+  const count = await sendPushToUser(driver_id, title, body, {
+    type: "bid_accepted",
+    ride_id,
+    from_address: from_address ?? "",
+  });
+  logger.info({ msg: "bid_accepted_notification", driver_id, ride_id, count });
+  res.json({ sent: count });
+});
+
+// Notify driver about ride cancellation
+app.post("/api/v1/notifications/ride-cancelled", async (req, res) => {
+  const { driver_id, ride_id, reason } = req.body ?? {};
+  if (!driver_id || !ride_id) {
+    return res.status(400).json({ error: "driver_id and ride_id required" });
+  }
+  const title = "Поездка отменена";
+  const body = reason ?? "Пассажир отменил поездку";
+  const count = await sendPushToUser(driver_id, title, body, {
+    type: "ride_cancelled",
+    ride_id,
+  });
+  logger.info({ msg: "ride_cancelled_notification", driver_id, ride_id, count });
   res.json({ sent: count });
 });
 

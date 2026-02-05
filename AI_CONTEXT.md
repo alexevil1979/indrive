@@ -28,12 +28,12 @@
 - **payment** (8084): checkout (**Tinkoff, YooMoney, Sber** + cash), refund, saved cards, webhooks, /metrics
 
 ### Backend-сервисы (Node.js)
-- **notification** (8085): device tokens, push (Firebase stub), чат WebSocket /ws/chat, /metrics (prom-client), pino логи
+- **notification** (8085): device tokens, **push (Firebase Admin SDK)**, чат WebSocket /ws/chat, **/api/v1/notifications/{new-bid,ride-status,new-ride,bid-accepted,ride-cancelled}**, /metrics (prom-client), pino логи
 
 ### Приложения
 - **web-admin** (Next.js 15, порт 3000): дашборд, поездки, **пользователи**, **верификация водителей (approve/reject)**, **платежи (refund)**, Tailwind, shadcn/ui
-- **mobile-passenger** (Expo): **интерактивная карта (react-native-maps)** с выбором точек, маркеры водителей поблизости, экран оплаты, интеграция платежей в поездку, геолокация (expo-location)
-- **mobile-driver** (Expo): **карта с заявками**, переключатель «на линии», обновление позиции водителя, экран верификации (загрузка документов)
+- **mobile-passenger** (Expo): интерактивная карта (react-native-maps) с выбором точек, маркеры водителей поблизости, экран оплаты, интеграция платежей, **push-уведомления (expo-notifications)** о ставках и статусе поездки
+- **mobile-driver** (Expo): карта с заявками, переключатель «на линии», обновление позиции водителя, экран верификации, **push-уведомления** о новых заявках (с popup alert)
 
 ### Пакеты (packages)
 - **otel-go:** logger, tracing, metrics, middleware — общий observability для Go
@@ -61,13 +61,15 @@
 3. ~~**Платёжные интеграции**~~ — ✅ реализовано (payment service: Tinkoff, YooMoney, Sber gateways, webhooks, refunds, saved cards)
 4. ~~**UI для web-admin**~~ — ✅ реализовано (панели: верификация водителей c approve/reject, платежи c refund, пользователи)
 5. ~~**Mobile apps (платежи/верификация)**~~ — ✅ реализовано
-6. ~~**Карты и геолокация**~~ — ✅ реализовано:
-   - react-native-maps + expo-location в обоих мобильных приложениях
-   - mobile-passenger: интерактивная карта с выбором точек отправления/назначения, маркеры водителей поблизости
-   - mobile-driver: карта заявок, переключатель «на линии», автоматическое обновление позиции
-7. **E2E / интеграционные тесты** — Docker Compose + тесты на Go и Node.
-8. **CI/CD** — GitHub Actions: lint, test, build, push images.
-9. **Push-уведомления** — Firebase Cloud Messaging интеграция.
+6. ~~**Карты и геолокация**~~ — ✅ реализовано (react-native-maps + expo-location)
+7. ~~**Push-уведомления**~~ — ✅ реализовано:
+   - expo-notifications в обоих мобильных приложениях
+   - Регистрация device token на backend (Firebase Admin SDK)
+   - mobile-passenger: уведомления о новых ставках, статусе поездки
+   - mobile-driver: уведомления о новых заявках (с popup alert), bid accepted, ride cancelled
+   - notification service: эндпоинты /new-bid, /ride-status, /new-ride, /bid-accepted, /ride-cancelled
+8. **E2E / интеграционные тесты** — Docker Compose + тесты на Go и Node.
+9. **CI/CD** — GitHub Actions: lint, test, build, push images.
 10. **Чат пассажир-водитель** — WebSocket интеграция в мобильные приложения.
 
 При следующем запросе уточнить, какое направление приоритетно.
