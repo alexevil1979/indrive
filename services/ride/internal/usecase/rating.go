@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/alexevil1979/indrive/services/ride/internal/domain"
+	"github.com/ridehail/ride/internal/domain"
 )
 
 // RatingRepo defines rating repository interface
