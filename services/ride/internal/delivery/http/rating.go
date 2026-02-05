@@ -6,8 +6,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"github.com/alexevil1979/indrive/services/ride/internal/domain"
-	"github.com/alexevil1979/indrive/services/ride/internal/usecase"
+	"github.com/ridehail/ride/internal/domain"
+	"github.com/ridehail/ride/internal/usecase"
 )
 
 // RatingHandler handles rating HTTP endpoints

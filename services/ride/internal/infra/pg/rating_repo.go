@@ -6,7 +6,7 @@ import (
 
 	"github.com/lib/pq"
 
-	"github.com/alexevil1979/indrive/services/ride/internal/domain"
+	"github.com/ridehail/ride/internal/domain"
 )
 
 // RatingRepo handles rating persistence
