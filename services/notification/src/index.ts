@@ -8,6 +8,7 @@ import { WebSocketServer } from "ws";
 import { initDb, pool } from "./db.js";
 import { initFirebase, registerToken, sendPushToUser } from "./push.js";
 import * as chat from "./chat.js";
+import * as tracking from "./tracking.js";
 import logger from "./logger.js";
 import {
   register,
@@ -212,9 +213,30 @@ app.get("/api/v1/chat/:rideId/messages", async (req, res) => {
 const server = createServer(app);
 
 // WebSocket chat: ?rideId= & userId= (JWT in production)
-const wss = new WebSocketServer({ server, path: "/ws/chat" });
+const wssChat = new WebSocketServer({ noServer: true });
 
-wss.on("connection", (ws, req) => {
+// WebSocket tracking: driver location streaming
+const wssTracking = new WebSocketServer({ noServer: true });
+
+// Handle upgrade requests
+server.on("upgrade", (request, socket, head) => {
+  const url = new URL(request.url ?? "", `http://localhost`);
+  
+  if (url.pathname === "/ws/chat") {
+    wssChat.handleUpgrade(request, socket, head, (ws) => {
+      wssChat.emit("connection", ws, request);
+    });
+  } else if (url.pathname === "/ws/tracking") {
+    wssTracking.handleUpgrade(request, socket, head, (ws) => {
+      wssTracking.emit("connection", ws, request);
+    });
+  } else {
+    socket.destroy();
+  }
+});
+
+// Chat WebSocket handler
+wssChat.on("connection", (ws, req) => {
   const url = new URL(req.url ?? "", `http://localhost`);
   const rideId = url.searchParams.get("rideId") ?? "";
   const userId = url.searchParams.get("userId") ?? "anonymous";
@@ -226,7 +248,7 @@ wss.on("connection", (ws, req) => {
 
   wsConnectionsActive.inc();
   chat.joinRoom(ws, rideId, userId);
-  logger.info({ msg: "ws_connected", rideId, userId });
+  logger.info({ msg: "ws_chat_connected", rideId, userId });
 
   ws.on("message", async (raw) => {
     try {
@@ -249,13 +271,105 @@ wss.on("connection", (ws, req) => {
 
   ws.on("close", () => {
     wsConnectionsActive.dec();
-    logger.info({ msg: "ws_disconnected", rideId, userId });
+    logger.info({ msg: "ws_chat_disconnected", rideId, userId });
   });
 
   ws.on("error", (err) => {
     logger.error({ msg: "ws_error", error: err.message });
     errorsTotal.inc({ type: "ws_error" });
   });
+});
+
+// Tracking WebSocket handler
+// Driver: ?role=driver&rideId=&driverId=
+// Passenger: ?role=passenger&rideId=&passengerId=
+wssTracking.on("connection", (ws, req) => {
+  const url = new URL(req.url ?? "", `http://localhost`);
+  const role = url.searchParams.get("role") ?? "";
+  const rideId = url.searchParams.get("rideId") ?? "";
+
+  if (!rideId) {
+    ws.close(4000, "rideId required");
+    return;
+  }
+
+  wsConnectionsActive.inc();
+
+  if (role === "driver") {
+    const driverId = url.searchParams.get("driverId") ?? "";
+    if (!driverId) {
+      ws.close(4000, "driverId required for driver role");
+      return;
+    }
+
+    tracking.registerDriver(ws, rideId, driverId);
+    logger.info({ msg: "ws_tracking_driver_connected", rideId, driverId });
+
+    ws.on("message", (raw) => {
+      try {
+        const body = JSON.parse(raw.toString()) as {
+          type: string;
+          lat?: number;
+          lng?: number;
+          heading?: number;
+          speed?: number;
+        };
+
+        if (body.type === "location" && typeof body.lat === "number" && typeof body.lng === "number") {
+          tracking.updateDriverLocation(rideId, driverId, {
+            lat: body.lat,
+            lng: body.lng,
+            heading: body.heading,
+            speed: body.speed,
+            timestamp: Date.now(),
+          });
+        }
+      } catch (err) {
+        logger.error({ msg: "ws_tracking_message_error", error: (err as Error).message });
+        errorsTotal.inc({ type: "ws_tracking_message" });
+      }
+    });
+
+  } else if (role === "passenger") {
+    const passengerId = url.searchParams.get("passengerId") ?? "";
+    if (!passengerId) {
+      ws.close(4000, "passengerId required for passenger role");
+      return;
+    }
+
+    tracking.subscribePassenger(ws, rideId, passengerId);
+    logger.info({ msg: "ws_tracking_passenger_connected", rideId, passengerId });
+
+  } else {
+    ws.close(4000, "role must be driver or passenger");
+    return;
+  }
+
+  ws.on("close", () => {
+    wsConnectionsActive.dec();
+    logger.info({ msg: "ws_tracking_disconnected", rideId, role });
+  });
+
+  ws.on("error", (err) => {
+    logger.error({ msg: "ws_tracking_error", error: err.message });
+    errorsTotal.inc({ type: "ws_tracking_error" });
+  });
+});
+
+// API to get tracking stats
+app.get("/api/v1/tracking/stats", (_req, res) => {
+  const stats = tracking.getStats();
+  res.json(stats);
+});
+
+// API to cleanup tracking for a ride (when completed/cancelled)
+app.post("/api/v1/tracking/cleanup", (req, res) => {
+  const { ride_id } = req.body ?? {};
+  if (!ride_id) {
+    return res.status(400).json({ error: "ride_id required" });
+  }
+  tracking.cleanupRide(ride_id);
+  res.json({ status: "ok" });
 });
 
 server.listen(PORT, () => {

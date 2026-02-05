@@ -17,6 +17,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { Button, Card, Badge } from "@ridehail/ui";
 import { useAuth } from "../../context/AuthContext";
+import { DriverTrackingMap } from "../../components/DriverTrackingMap";
 import {
   getRide,
   listBids,
@@ -44,7 +45,7 @@ const statusLabel: Record<string, string> = {
 export default function RideDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { token } = useAuth();
+  const { token, userId } = useAuth();
   const router = useRouter();
   const [ride, setRide] = useState<Ride | null>(null);
   const [bids, setBids] = useState<Bid[]>([]);
@@ -244,6 +245,19 @@ export default function RideDetailScreen() {
 
       {isMatchedOrActive ? (
         <>
+          {/* Driver tracking map */}
+          {userId && (
+            <Card style={styles.trackingCard}>
+              <DriverTrackingMap
+                rideId={id}
+                passengerId={userId}
+                isActive={ride.status === "matched" || ride.status === "in_progress"}
+                from={ride.from}
+                to={ride.to}
+              />
+            </Card>
+          )}
+
           {/* Payment selection */}
           <Card style={styles.card}>
             <Text style={styles.sectionTitle}>Способ оплаты</Text>
@@ -444,6 +458,7 @@ export default function RideDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8fafc" },
   content: { padding: 16, paddingBottom: 32 },
+  trackingCard: { marginBottom: 16, height: 300, padding: 0, overflow: "hidden" },
   center: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
   muted: { color: "#64748b" },
   card: { marginBottom: 16 },

@@ -15,6 +15,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Button, Card, Badge, Input } from "@ridehail/ui";
 import { useAuth } from "../../context/AuthContext";
+import { useDriverTracking } from "../../hooks/useDriverTracking";
 import {
   getRide,
   placeBid,
@@ -34,12 +35,20 @@ const statusLabel: Record<string, string> = {
 export default function RideDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { token } = useAuth();
+  const { token, userId } = useAuth();
   const router = useRouter();
   const [ride, setRide] = useState<Ride | null>(null);
   const [price, setPrice] = useState("");
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Start tracking when ride is matched or in_progress
+  const isActiveRide = ride?.status === "matched" || ride?.status === "in_progress";
+  const { isConnected: isTrackingConnected, isTracking } = useDriverTracking(
+    id ?? null,
+    userId ?? null,
+    isActiveRide && !!ride?.driver_id
+  );
 
   const load = async () => {
     if (!token || !id) return;
@@ -151,6 +160,25 @@ export default function RideDetailScreen() {
         {ride.price != null ? (
           <Text style={styles.price}>Цена: {ride.price} ₽</Text>
         ) : null}
+
+        {/* Tracking status indicator */}
+        {isActiveRide && (
+          <View style={styles.trackingStatus}>
+            <View
+              style={[
+                styles.trackingDot,
+                isTracking ? styles.trackingDotActive : styles.trackingDotInactive,
+              ]}
+            />
+            <Text style={styles.trackingText}>
+              {isTracking
+                ? "📍 Позиция передаётся пассажиру"
+                : isTrackingConnected
+                  ? "Подключено, ожидание GPS..."
+                  : "Подключение к трекингу..."}
+            </Text>
+          </View>
+        )}
       </Card>
 
       {canBid ? (
@@ -256,6 +284,12 @@ const styles = StyleSheet.create({
   label: { fontSize: 12, color: "#64748b" },
   route: { fontSize: 14, color: "#0f172a", marginBottom: 4 },
   price: { fontSize: 16, fontWeight: "600", marginTop: 8 },
+  // Tracking status
+  trackingStatus: { flexDirection: "row", alignItems: "center", marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#e2e8f0" },
+  trackingDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
+  trackingDotActive: { backgroundColor: "#16a34a" },
+  trackingDotInactive: { backgroundColor: "#f59e0b" },
+  trackingText: { fontSize: 12, color: "#64748b" },
   sectionTitle: { fontSize: 14, fontWeight: "600", marginBottom: 12, color: "#0f172a" },
   bidRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   bidBtn: { marginRight: 8, marginBottom: 8 },

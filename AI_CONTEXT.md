@@ -31,9 +31,9 @@
 - **notification** (8085): device tokens, **push (Firebase Admin SDK)**, чат WebSocket /ws/chat, **/api/v1/notifications/{new-bid,ride-status,new-ride,bid-accepted,ride-cancelled}**, /metrics (prom-client), pino логи
 
 ### Приложения
-- **web-admin** (Next.js 15, порт 3000): дашборд, поездки, пользователи, верификация, платежи, **отзывы и рейтинги**
-- **mobile-passenger** (Expo): интерактивная карта, оплата, push, чат, **экран оценки водителя после поездки**
-- **mobile-driver** (Expo): карта с заявками, верификация, push, чат, **таб рейтинга**, **экран оценки пассажира**
+- **web-admin** (Next.js 15, порт 3000): дашборд, поездки, пользователи, верификация, платежи, отзывы
+- **mobile-passenger** (Expo): карта, оплата, push, чат, рейтинги, **real-time трекинг водителя (WebSocket)**
+- **mobile-driver** (Expo): карта, верификация, push, чат, рейтинги, **стриминг позиции для пассажира**
 
 ### Пакеты (packages)
 - **otel-go:** logger, tracing, metrics, middleware — общий observability для Go
@@ -64,17 +64,16 @@
 6. ~~**Карты и геолокация**~~ — ✅ реализовано
 7. ~~**Push-уведомления**~~ — ✅ реализовано
 8. ~~**Чат пассажир-водитель**~~ — ✅ реализовано
-9. ~~**Рейтинги и отзывы**~~ — ✅ реализовано:
-   - Domain: Rating entity, UserRating aggregate, tags
-   - PostgreSQL: migrations с триггером для агрегации
-   - Repository + UseCase для рейтингов
-   - HTTP handlers: submit, get user/ride ratings, tags
-   - mobile-passenger: экран оценки водителя после поездки
-   - mobile-driver: таб "Рейтинг" + экран оценки пассажира
-   - web-admin: панель отзывов с пагинацией и статистикой
-10. **E2E / интеграционные тесты** — Docker Compose + тесты на Go и Node.
-11. **CI/CD** — GitHub Actions: lint, test, build, push images.
-12. **Real-time трекинг** — отслеживание позиции водителя на карте пассажира.
+9. ~~**Рейтинги и отзывы**~~ — ✅ реализовано
+10. ~~**Real-time трекинг**~~ — ✅ реализовано:
+    - WebSocket /ws/tracking в notification service
+    - tracking.ts: driver registration, passenger subscription, location broadcast
+    - mobile-driver: useDriverTracking хук для стриминга позиции
+    - mobile-passenger: useDriverTracking + DriverTrackingMap компонент
+    - Интеграция в экраны поездки (статусы matched/in_progress)
+11. **E2E / интеграционные тесты** — Docker Compose + тесты на Go и Node.
+12. **CI/CD** — GitHub Actions: lint, test, build, push images.
+13. **Промокоды и скидки** — система промокодов для пассажиров.
 
 При следующем запросе уточнить, какое направление приоритетно.
 
