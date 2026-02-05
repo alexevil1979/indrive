@@ -62,6 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(
     async (email: string, password: string) => {
       const data: TokenResponse = await apiLogin(email, password);
+      setState((s) => ({ ...s, userId: data.user_id ?? null }));
       setToken(data.access_token);
     },
     [setToken]
@@ -70,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = useCallback(
     async (email: string, password: string) => {
       const data: TokenResponse = await apiRegister(email, password, "driver");
+      setState((s) => ({ ...s, userId: data.user_id ?? null }));
       setToken(data.access_token);
     },
     [setToken]

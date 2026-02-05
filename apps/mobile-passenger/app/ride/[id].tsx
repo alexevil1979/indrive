@@ -369,6 +369,18 @@ export default function RideDetailScreen() {
             )}
           </Card>
 
+          {/* Chat button */}
+          <Card style={styles.card}>
+            <TouchableOpacity
+              style={styles.chatButton}
+              onPress={() => router.push(`/chat/${id}`)}
+            >
+              <Text style={styles.chatButtonIcon}>💬</Text>
+              <Text style={styles.chatButtonText}>Чат с водителем</Text>
+              <Text style={styles.chatButtonArrow}>→</Text>
+            </TouchableOpacity>
+          </Card>
+
           {/* Actions */}
           <Card style={styles.card}>
             <Text style={styles.sectionTitle}>Действия</Text>
@@ -450,4 +462,9 @@ const styles = StyleSheet.create({
   saveCardText: { fontSize: 14, color: "#0f172a" },
   useNewBtn: { alignItems: "center", paddingVertical: 8 },
   useNewBtnText: { color: "#2563eb", fontSize: 13, fontWeight: "500" },
+  // Chat button
+  chatButton: { flexDirection: "row", alignItems: "center", paddingVertical: 12 },
+  chatButtonIcon: { fontSize: 24, marginRight: 12 },
+  chatButtonText: { flex: 1, fontSize: 16, fontWeight: "600", color: "#0f172a" },
+  chatButtonArrow: { fontSize: 18, color: "#64748b" },
 });

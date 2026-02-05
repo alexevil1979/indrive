@@ -35,6 +35,14 @@ function RootLayoutNav() {
             headerBackTitle: "Назад",
           }}
         />
+        <Stack.Screen
+          name="chat/[rideId]"
+          options={{
+            headerShown: true,
+            headerTitle: "Чат с водителем",
+            headerBackTitle: "Назад",
+          }}
+        />
       </Stack>
     </>
   );

@@ -10,6 +10,7 @@ import {
   Alert,
   RefreshControl,
   Linking,
+  TouchableOpacity,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Button, Card, Badge, Input } from "@ridehail/ui";
@@ -177,38 +178,52 @@ export default function RideDetailScreen() {
       ) : null}
 
       {isMyRide && isMatchedOrActive ? (
-        <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Действия</Text>
-          {ride.status === "matched" ? (
-            <Button
-              title="Начать поездку"
-              onPress={() => handleStatus("in_progress")}
-              variant="primary"
-            />
-          ) : null}
-          {ride.status === "in_progress" ? (
-            <>
+        <>
+          {/* Chat button */}
+          <Card style={styles.card}>
+            <TouchableOpacity
+              style={styles.chatButton}
+              onPress={() => router.push(`/chat/${id}`)}
+            >
+              <Text style={styles.chatButtonIcon}>💬</Text>
+              <Text style={styles.chatButtonText}>Чат с пассажиром</Text>
+              <Text style={styles.chatButtonArrow}>→</Text>
+            </TouchableOpacity>
+          </Card>
+
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>Действия</Text>
+            {ride.status === "matched" ? (
               <Button
-                title="Открыть навигацию (Google Maps)"
-                onPress={openNavigation}
-                variant="outline"
-                style={styles.navBtn}
-              />
-              <Button
-                title="Завершить поездку"
-                onPress={() => handleStatus("completed")}
+                title="Начать поездку"
+                onPress={() => handleStatus("in_progress")}
                 variant="primary"
-                style={styles.actionBtn}
               />
-            </>
-          ) : null}
-          <Button
-            title="Отменить"
-            onPress={() => handleStatus("cancelled")}
-            variant="outline"
-            style={styles.actionBtn}
-          />
-        </Card>
+            ) : null}
+            {ride.status === "in_progress" ? (
+              <>
+                <Button
+                  title="Открыть навигацию (Google Maps)"
+                  onPress={openNavigation}
+                  variant="outline"
+                  style={styles.navBtn}
+                />
+                <Button
+                  title="Завершить поездку"
+                  onPress={() => handleStatus("completed")}
+                  variant="primary"
+                  style={styles.actionBtn}
+                />
+              </>
+            ) : null}
+            <Button
+              title="Отменить"
+              onPress={() => handleStatus("cancelled")}
+              variant="outline"
+              style={styles.actionBtn}
+            />
+          </Card>
+        </>
       ) : null}
     </ScrollView>
   );
@@ -229,4 +244,9 @@ const styles = StyleSheet.create({
   bidBtn: { marginRight: 8, marginBottom: 8 },
   navBtn: { marginTop: 8 },
   actionBtn: { marginTop: 8 },
+  // Chat button
+  chatButton: { flexDirection: "row", alignItems: "center", paddingVertical: 12 },
+  chatButtonIcon: { fontSize: 24, marginRight: 12 },
+  chatButtonText: { flex: 1, fontSize: 16, fontWeight: "600", color: "#0f172a" },
+  chatButtonArrow: { fontSize: 18, color: "#64748b" },
 });
