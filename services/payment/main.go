@@ -1,5 +1,5 @@
 // Package main — RideHail Payment Service (2026)
-// Checkout flow, cash/card stub (later: Tinkoff, Sber, YooMoney)
+// Checkout flow with Tinkoff, YooMoney, Sber integrations
 package main
 
 import (
@@ -18,6 +18,8 @@ import (
 	"github.com/alexevil1979/indrive/packages/otel-go/tracing"
 
 	httphandler "github.com/ridehail/payment/internal/delivery/http"
+	"github.com/ridehail/payment/internal/domain"
+	"github.com/ridehail/payment/internal/infra/gateway"
 	"github.com/ridehail/payment/internal/infra/jwt"
 	"github.com/ridehail/payment/internal/infra/pg"
 	"github.com/ridehail/payment/internal/usecase"
@@ -33,6 +35,19 @@ func main() {
 	pgDSN := getEnv("PG_DSN", "postgres://ridehail:ridehail_secret@localhost:5432/ridehail?sslmode=disable")
 	jwtSecret := getEnv("JWT_SECRET", "dev-secret-change-in-production")
 	otlpEndpoint := getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+
+	// Payment provider configuration
+	baseURL := getEnv("BASE_URL", "http://localhost:8084")
+	tinkoffTerminalKey := getEnv("TINKOFF_TERMINAL_KEY", "")
+	tinkoffPassword := getEnv("TINKOFF_PASSWORD", "")
+	tinkoffTestMode := getEnv("TINKOFF_TEST_MODE", "true") == "true"
+	yooMoneyShopID := getEnv("YOOMONEY_SHOP_ID", "")
+	yooMoneySecretKey := getEnv("YOOMONEY_SECRET_KEY", "")
+	yooMoneyWebhookSecret := getEnv("YOOMONEY_WEBHOOK_SECRET", "")
+	sberUserName := getEnv("SBER_USERNAME", "")
+	sberPassword := getEnv("SBER_PASSWORD", "")
+	sberToken := getEnv("SBER_TOKEN", "")
+	sberTestMode := getEnv("SBER_TEST_MODE", "true") == "true"
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -67,10 +82,54 @@ func main() {
 	}
 	log.Info("postgres + migrations ready")
 
+	// Initialize payment gateways
+	gwManager := gateway.NewManager()
+
+	// Register cash gateway (always available)
+	gwManager.Register(gateway.NewCashGateway())
+
+	// Register Tinkoff gateway
+	if tinkoffTerminalKey != "" {
+		tinkoffGW := gateway.NewTinkoffGateway(gateway.TinkoffConfig{
+			TerminalKey: tinkoffTerminalKey,
+			Password:    tinkoffPassword,
+			TestMode:    tinkoffTestMode,
+			NotifyURL:   baseURL + "/webhooks/tinkoff",
+		})
+		gwManager.Register(tinkoffGW)
+		log.Info("tinkoff gateway registered", "test_mode", tinkoffTestMode)
+	}
+
+	// Register YooMoney gateway
+	if yooMoneyShopID != "" {
+		yooMoneyGW := gateway.NewYooMoneyGateway(gateway.YooMoneyConfig{
+			ShopID:        yooMoneyShopID,
+			SecretKey:     yooMoneySecretKey,
+			WebhookSecret: yooMoneyWebhookSecret,
+			ReturnURL:     baseURL + "/payment/success",
+		})
+		gwManager.Register(yooMoneyGW)
+		log.Info("yoomoney gateway registered")
+	}
+
+	// Register Sber gateway
+	if sberUserName != "" || sberToken != "" {
+		sberGW := gateway.NewSberGateway(gateway.SberConfig{
+			UserName:  sberUserName,
+			Password:  sberPassword,
+			Token:     sberToken,
+			TestMode:  sberTestMode,
+			ReturnURL: baseURL + "/payment/success",
+			FailURL:   baseURL + "/payment/fail",
+		})
+		gwManager.Register(sberGW)
+		log.Info("sber gateway registered", "test_mode", sberTestMode)
+	}
+
 	// Initialize use cases
 	jwtValidator := jwt.NewValidator(jwtSecret)
 	paymentRepo := pg.NewPaymentRepo(pool)
-	paymentUC := usecase.NewPaymentUseCase(paymentRepo)
+	paymentUC := usecase.NewPaymentUseCase(paymentRepo, gwManager)
 
 	// Setup Echo
 	e := echo.New()
@@ -84,12 +143,29 @@ func main() {
 	e.GET("/ready", httphandler.Ready(pool))
 	e.GET("/metrics", echo.WrapHandler(m.Handler()))
 
+	// Public routes (webhooks)
+	e.POST("/webhooks/tinkoff", httphandler.Webhook(paymentUC, domain.ProviderTinkoff))
+	e.POST("/webhooks/yoomoney", httphandler.Webhook(paymentUC, domain.ProviderYooMoney))
+	e.POST("/webhooks/sber", httphandler.Webhook(paymentUC, domain.ProviderSber))
+
+	// Providers info (public)
+	e.GET("/api/v1/payments/providers", httphandler.GetProviders(paymentUC))
+
 	api := e.Group("/api/v1")
 	api.Use(httphandler.JWTAuth(jwtValidator))
+
+	// Payment operations
 	api.POST("/payments", httphandler.CreatePayment(paymentUC))
+	api.GET("/payments", httphandler.ListPayments(paymentUC))
 	api.GET("/payments/ride/:rideId", httphandler.GetPaymentByRide(paymentUC))
 	api.GET("/payments/:id", httphandler.GetPayment(paymentUC))
 	api.POST("/payments/:id/confirm", httphandler.ConfirmPayment(paymentUC))
+	api.POST("/payments/:id/refund", httphandler.RefundPayment(paymentUC))
+
+	// Payment methods (saved cards)
+	api.GET("/payment-methods", httphandler.ListPaymentMethods(paymentUC))
+	api.DELETE("/payment-methods/:id", httphandler.DeletePaymentMethod(paymentUC))
+	api.POST("/payment-methods/:id/default", httphandler.SetDefaultPaymentMethod(paymentUC))
 
 	// Start server
 	go func() {

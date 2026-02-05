@@ -1,22 +1,52 @@
-// Package gateway — stub payment gateways (cash, card)
-// Later: Tinkoff, Sber, YooMoney integrations
+// Package gateway — Cash gateway (no external provider)
 package gateway
 
 import (
 	"context"
 	"fmt"
+
+	"github.com/ridehail/payment/internal/domain"
 )
 
+// CashGateway — cash payment (no external gateway)
 type CashGateway struct{}
 
-func (g *CashGateway) Charge(ctx context.Context, amount float64, currency, rideID string) (externalID string, err error) {
-	// Cash: no external call, just return stub id
-	return fmt.Sprintf("cash_stub_%s", rideID), nil
+// NewCashGateway creates cash gateway
+func NewCashGateway() *CashGateway {
+	return &CashGateway{}
 }
 
-type CardGateway struct{}
+// Provider returns provider name
+func (g *CashGateway) Provider() string {
+	return domain.ProviderCash
+}
 
-func (g *CardGateway) Charge(ctx context.Context, amount float64, currency, rideID string) (externalID string, err error) {
-	// Card stub: simulate success (later: Tinkoff/Sber/YooMoney)
-	return fmt.Sprintf("card_stub_%s", rideID), nil
+// CreatePayment for cash — immediately completed
+func (g *CashGateway) CreatePayment(ctx context.Context, input CreatePaymentInput) (*CreatePaymentResult, error) {
+	return &CreatePaymentResult{
+		ExternalID:       fmt.Sprintf("cash_%s", input.PaymentID),
+		Status:           domain.PaymentStatusPending, // Will be confirmed by driver
+		RequiresRedirect: false,
+	}, nil
+}
+
+// GetPaymentStatus for cash
+func (g *CashGateway) GetPaymentStatus(ctx context.Context, externalID string) (string, error) {
+	// Cash payments are always pending until driver confirms
+	return domain.PaymentStatusPending, nil
+}
+
+// Refund for cash — not supported
+func (g *CashGateway) Refund(ctx context.Context, input RefundInput) (*RefundResult, error) {
+	return nil, fmt.Errorf("refund not supported for cash payments")
+}
+
+// ParseWebhook for cash — not applicable
+func (g *CashGateway) ParseWebhook(ctx context.Context, body []byte, signature string) (*domain.WebhookEvent, error) {
+	return nil, fmt.Errorf("webhooks not supported for cash payments")
+}
+
+// GetSavedCard for cash — not applicable
+func (g *CashGateway) GetSavedCard(ctx context.Context, externalID string) (*CardInfo, error) {
+	return nil, nil
 }

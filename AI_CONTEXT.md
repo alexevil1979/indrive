@@ -25,7 +25,7 @@
 - **user** (8081): профили, **верификация водителя (MinIO upload)**, /api/v1/users/me, /api/v1/verification/*, /api/v1/admin/verifications/*, /metrics
 - **geolocation** (8082): позиция водителя, nearest drivers (Redis GEO), WebSocket /ws/tracking, /metrics
 - **ride** (8083): поездки, ставки, Kafka-события, admin /api/v1/admin/rides, /metrics
-- **payment** (8084): checkout (cash/card stub), /metrics
+- **payment** (8084): checkout (**Tinkoff, YooMoney, Sber** + cash), refund, saved cards, webhooks, /metrics
 
 ### Backend-сервисы (Node.js)
 - **notification** (8085): device tokens, push (Firebase stub), чат WebSocket /ws/chat, /metrics (prom-client), pino логи
@@ -58,10 +58,10 @@
 
 1. ~~**OAuth2 (Google/Yandex/VK)**~~ — ✅ реализовано (auth service)
 2. ~~**Верификация водителя**~~ — ✅ реализовано (user service: MinIO upload, domain, repo, usecase, HTTP handlers, admin review)
-3. **Платёжные интеграции** — Tinkoff/Sber/YooMoney SDK вместо stub.
+3. ~~**Платёжные интеграции**~~ — ✅ реализовано (payment service: Tinkoff, YooMoney, Sber gateways, webhooks, refunds, saved cards)
 4. **E2E / интеграционные тесты** — Docker Compose + тесты на Go и Node.
 5. **CI/CD** — GitHub Actions: lint, test, build, push images.
-6. **UI для web-admin** — панель верификации водителей (список, просмотр документов, approve/reject).
+6. **UI для web-admin** — панели: верификация водителей, платежи, пользователи.
 
 При следующем запросе уточнить, какое направление приоритетно.
 

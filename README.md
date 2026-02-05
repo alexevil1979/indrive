@@ -6,7 +6,7 @@ inDrive-подобный сервис заказа поездок с торга�
 
 | Компонент       | Технология                                      |
 |-----------------|------------------------------------------------|
-| Backend         | Go 1.23+ (auth с OAuth2, user с верификацией водителя, geolocation, ride, payment) |
+| Backend         | Go 1.23+ (auth с OAuth2, user с верификацией, geolocation, ride, payment с Tinkoff/YooMoney/Sber) |
 | Realtime        | Node.js (notification: push, chat WebSocket)    |
 | Mobile          | React Native / Expo (passenger, driver)         |
 | Web Admin       | Next.js 15, Tailwind, shadcn/ui                 |
@@ -30,7 +30,7 @@ indrive/
 │   ├── user/                # Go — профили, верификация водителя (MinIO)
 │   ├── geolocation/         # Go — трекинг, Redis GEO
 │   ├── ride/                # Go — поездки, ставки, Kafka
-│   ├── payment/             # Go — платежи (stub)
+│   ├── payment/             # Go — платежи (Tinkoff, YooMoney, Sber)
 │   └── notification/        # Node — push, chat
 ├── packages/
 │   ├── otel-go/             # Go — observability (logger, tracing, metrics)
@@ -126,6 +126,16 @@ cd apps/web-admin && pnpm start
 | `MINIO_SECRET_KEY`          | ridehail_minio_secret                                   | MinIO secret key                |
 | `MINIO_BUCKET`              | ridehail-documents                                      | MinIO bucket name               |
 | `MINIO_PUBLIC_URL`          | (пусто)                                                 | Public URL для MinIO            |
+| `TINKOFF_TERMINAL_KEY`      | (пусто)                                                 | Tinkoff terminal ID             |
+| `TINKOFF_PASSWORD`          | (пусто)                                                 | Tinkoff terminal password       |
+| `TINKOFF_TEST_MODE`         | true                                                    | Tinkoff test mode               |
+| `YOOMONEY_SHOP_ID`          | (пусто)                                                 | YooMoney shop ID                |
+| `YOOMONEY_SECRET_KEY`       | (пусто)                                                 | YooMoney API secret             |
+| `YOOMONEY_WEBHOOK_SECRET`   | (пусто)                                                 | YooMoney webhook secret         |
+| `SBER_USERNAME`             | (пусто)                                                 | Sberbank API username           |
+| `SBER_PASSWORD`             | (пусто)                                                 | Sberbank API password           |
+| `SBER_TOKEN`                | (пусто)                                                 | Sberbank API token (alt)        |
+| `SBER_TEST_MODE`            | true                                                    | Sberbank test mode              |
 
 ## Документация
 
