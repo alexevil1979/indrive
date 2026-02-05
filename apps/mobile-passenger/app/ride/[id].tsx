@@ -1,5 +1,5 @@
 /**
- * Ride detail — bids list, accept bid (bidding UI)
+ * Ride detail — bids list, accept bid, payment selection
  */
 import { useEffect, useState } from "react";
 import {
@@ -10,8 +10,11 @@ import {
   Alert,
   TouchableOpacity,
   RefreshControl,
+  Switch,
+  Linking,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { Button, Card, Badge } from "@ridehail/ui";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -19,8 +22,14 @@ import {
   listBids,
   acceptBid,
   updateRideStatus,
+  createPayment,
+  listPaymentMethods,
+  getAvailableProviders,
+  confirmCashPayment,
+  PAYMENT_PROVIDERS,
   type Ride,
   type Bid,
+  type PaymentMethod,
 } from "../../lib/api";
 
 const statusLabel: Record<string, string> = {
@@ -42,12 +51,36 @@ export default function RideDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Payment state
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [providers, setProviders] = useState<string[]>([]);
+  const [selectedPaymentType, setSelectedPaymentType] = useState<"cash" | "card">("cash");
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<string>("tinkoff");
+  const [saveCard, setSaveCard] = useState(true);
+  const [paying, setPaying] = useState(false);
+
   const load = async () => {
     if (!token || !id) return;
     try {
-      const [r, b] = await Promise.all([getRide(token, id), listBids(token, id)]);
+      const [r, b, methods, provs] = await Promise.all([
+        getRide(token, id),
+        listBids(token, id),
+        listPaymentMethods(token).catch(() => []),
+        getAvailableProviders(token).catch(() => ["cash"]),
+      ]);
       setRide(r);
       setBids(b);
+      setPaymentMethods(methods);
+      setProviders(provs);
+
+      // Set default method if available
+      const defaultMethod = methods.find((m) => m.is_default);
+      if (defaultMethod) {
+        setSelectedMethod(defaultMethod);
+        setSelectedPaymentType("card");
+        setSelectedProvider(defaultMethod.provider);
+      }
     } catch {
       setRide(null);
       setBids([]);
@@ -102,6 +135,48 @@ export default function RideDetailScreen() {
         },
       },
     ]);
+  };
+
+  const handlePayment = async () => {
+    if (!token || !id || !ride?.price) return;
+    setPaying(true);
+    try {
+      if (selectedPaymentType === "cash") {
+        // Cash payment — just mark confirmed (driver receives cash)
+        await confirmCashPayment(token, id);
+        Alert.alert("Успешно", "Оплата наличными подтверждена");
+        load();
+      } else {
+        // Card payment
+        const intent = await createPayment(token, {
+          ride_id: id,
+          amount: ride.price,
+          method: "card",
+          provider: selectedMethod ? selectedMethod.provider : selectedProvider,
+          payment_method_id: selectedMethod?.id,
+          save_card: !selectedMethod && saveCard,
+        });
+
+        if (intent.requires_action && intent.confirm_url) {
+          // Open browser for 3DS or redirect
+          const result = await WebBrowser.openBrowserAsync(intent.confirm_url, {
+            dismissButtonStyle: "close",
+          });
+          // After redirect, refresh
+          load();
+        } else if (intent.status === "completed") {
+          Alert.alert("Успешно", "Оплата прошла успешно");
+          load();
+        } else {
+          Alert.alert("Ожидание", "Платёж обрабатывается, обновите страницу");
+          load();
+        }
+      }
+    } catch (e) {
+      Alert.alert("Ошибка оплаты", e instanceof Error ? e.message : "Не удалось провести оплату");
+    } finally {
+      setPaying(false);
+    }
   };
 
   if (loading || !ride) {
@@ -168,30 +243,166 @@ export default function RideDetailScreen() {
       ) : null}
 
       {isMatchedOrActive ? (
-        <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Действия</Text>
-          {ride.status === "matched" ? (
+        <>
+          {/* Payment selection */}
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>Способ оплаты</Text>
+
+            {/* Payment type toggle */}
+            <View style={styles.paymentTypeRow}>
+              <TouchableOpacity
+                style={[
+                  styles.paymentTypeBtn,
+                  selectedPaymentType === "cash" && styles.paymentTypeBtnActive,
+                ]}
+                onPress={() => {
+                  setSelectedPaymentType("cash");
+                  setSelectedMethod(null);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.paymentTypeBtnText,
+                    selectedPaymentType === "cash" && styles.paymentTypeBtnTextActive,
+                  ]}
+                >
+                  💵 Наличные
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.paymentTypeBtn,
+                  selectedPaymentType === "card" && styles.paymentTypeBtnActive,
+                ]}
+                onPress={() => setSelectedPaymentType("card")}
+              >
+                <Text
+                  style={[
+                    styles.paymentTypeBtnText,
+                    selectedPaymentType === "card" && styles.paymentTypeBtnTextActive,
+                  ]}
+                >
+                  💳 Карта
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {selectedPaymentType === "card" && (
+              <>
+                {/* Saved cards */}
+                {paymentMethods.length > 0 && (
+                  <View style={styles.savedCardsSection}>
+                    <Text style={styles.subsectionTitle}>Сохранённые карты</Text>
+                    {paymentMethods.map((pm) => (
+                      <TouchableOpacity
+                        key={pm.id}
+                        style={[
+                          styles.savedCardRow,
+                          selectedMethod?.id === pm.id && styles.savedCardRowActive,
+                        ]}
+                        onPress={() => {
+                          setSelectedMethod(pm);
+                          setSelectedProvider(pm.provider);
+                        }}
+                      >
+                        <Text style={styles.savedCardText}>
+                          {pm.brand} •••• {pm.last4}
+                        </Text>
+                        {pm.is_default && <Badge label="Основная" variant="primary" />}
+                        {selectedMethod?.id === pm.id && <Text style={styles.checkmark}>✓</Text>}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                {/* New card / provider selection */}
+                {!selectedMethod && (
+                  <View style={styles.newCardSection}>
+                    <Text style={styles.subsectionTitle}>Новая карта</Text>
+                    <View style={styles.providerRow}>
+                      {providers
+                        .filter((p) => p !== "cash")
+                        .map((p) => (
+                          <TouchableOpacity
+                            key={p}
+                            style={[
+                              styles.providerBtn,
+                              selectedProvider === p && styles.providerBtnActive,
+                            ]}
+                            onPress={() => setSelectedProvider(p)}
+                          >
+                            <Text
+                              style={[
+                                styles.providerBtnText,
+                                selectedProvider === p && styles.providerBtnTextActive,
+                              ]}
+                            >
+                              {PAYMENT_PROVIDERS[p as keyof typeof PAYMENT_PROVIDERS] || p}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                    </View>
+
+                    <View style={styles.saveCardRow}>
+                      <Text style={styles.saveCardText}>Сохранить карту</Text>
+                      <Switch
+                        value={saveCard}
+                        onValueChange={setSaveCard}
+                        trackColor={{ true: "#2563eb" }}
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {/* Use saved or new */}
+                {paymentMethods.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.useNewBtn}
+                    onPress={() => setSelectedMethod(selectedMethod ? null : paymentMethods[0])}
+                  >
+                    <Text style={styles.useNewBtnText}>
+                      {selectedMethod ? "Использовать новую карту" : "Выбрать из сохранённых"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </Card>
+
+          {/* Actions */}
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>Действия</Text>
+            {ride.status === "matched" ? (
+              <Button
+                title="Начать поездку"
+                onPress={() => handleStatus("in_progress")}
+                variant="primary"
+              />
+            ) : null}
+            {ride.status === "in_progress" ? (
+              <>
+                <Button
+                  title={paying ? "Обработка..." : `Оплатить ${ride.price} ₽`}
+                  onPress={handlePayment}
+                  variant="primary"
+                  disabled={paying}
+                />
+                <Button
+                  title="Завершить без оплаты"
+                  onPress={() => handleStatus("completed")}
+                  variant="outline"
+                  style={styles.actionBtn}
+                />
+              </>
+            ) : null}
             <Button
-              title="Начать поездку"
-              onPress={() => handleStatus("in_progress")}
-              variant="primary"
-            />
-          ) : null}
-          {ride.status === "in_progress" ? (
-            <Button
-              title="Завершить поездку"
-              onPress={() => handleStatus("completed")}
-              variant="primary"
+              title="Отменить"
+              onPress={() => handleStatus("cancelled")}
+              variant="outline"
               style={styles.actionBtn}
             />
-          ) : null}
-          <Button
-            title="Отменить"
-            onPress={() => handleStatus("cancelled")}
-            variant="outline"
-            style={styles.actionBtn}
-          />
-        </Card>
+          </Card>
+        </>
       ) : null}
 
       {ride.status === "requested" || ride.status === "bidding" ? (
@@ -217,4 +428,26 @@ const styles = StyleSheet.create({
   bidBtn: { minWidth: 100 },
   actionBtn: { marginTop: 8 },
   hint: { fontSize: 12, color: "#64748b", textAlign: "center", marginTop: 8 },
+  // Payment styles
+  paymentTypeRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
+  paymentTypeBtn: { flex: 1, paddingVertical: 12, borderRadius: 8, backgroundColor: "#f1f5f9", alignItems: "center" },
+  paymentTypeBtnActive: { backgroundColor: "#2563eb" },
+  paymentTypeBtnText: { fontSize: 14, fontWeight: "500", color: "#64748b" },
+  paymentTypeBtnTextActive: { color: "#fff" },
+  savedCardsSection: { marginBottom: 12 },
+  subsectionTitle: { fontSize: 12, fontWeight: "500", color: "#64748b", marginBottom: 8 },
+  savedCardRow: { flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 8, backgroundColor: "#f8fafc", marginBottom: 8, borderWidth: 1, borderColor: "#e2e8f0" },
+  savedCardRowActive: { borderColor: "#2563eb", backgroundColor: "#eff6ff" },
+  savedCardText: { flex: 1, fontSize: 14, fontWeight: "500" },
+  checkmark: { color: "#2563eb", fontSize: 18, marginLeft: 8 },
+  newCardSection: { marginBottom: 12 },
+  providerRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  providerBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6, backgroundColor: "#f1f5f9", borderWidth: 1, borderColor: "#e2e8f0" },
+  providerBtnActive: { backgroundColor: "#dbeafe", borderColor: "#2563eb" },
+  providerBtnText: { fontSize: 13, color: "#64748b" },
+  providerBtnTextActive: { color: "#2563eb", fontWeight: "500" },
+  saveCardRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8 },
+  saveCardText: { fontSize: 14, color: "#0f172a" },
+  useNewBtn: { alignItems: "center", paddingVertical: 8 },
+  useNewBtnText: { color: "#2563eb", fontSize: 13, fontWeight: "500" },
 });

@@ -35,6 +35,10 @@ export default function TabsLayout() {
         name="rides"
         options={{ title: "Мои поездки", tabBarLabel: "Поездки" }}
       />
+      <Tabs.Screen
+        name="payment"
+        options={{ title: "Оплата", tabBarLabel: "Оплата" }}
+      />
     </Tabs>
   );
 }

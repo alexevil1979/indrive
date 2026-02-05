@@ -154,3 +154,152 @@ export async function updateRideStatus(
   }
   return res.json();
 }
+
+// ============ PAYMENTS ============
+
+export const PAYMENT_PROVIDERS = {
+  cash: "Наличные",
+  tinkoff: "Тинькофф",
+  yoomoney: "ЮMoney",
+  sber: "Сбербанк",
+} as const;
+
+export const PAYMENT_METHODS = {
+  cash: "Наличные",
+  card: "Карта",
+} as const;
+
+export const PAYMENT_STATUSES = {
+  pending: "Ожидание",
+  processing: "Обработка",
+  completed: "Оплачено",
+  failed: "Ошибка",
+  cancelled: "Отменён",
+  refunded: "Возврат",
+} as const;
+
+export type PaymentMethod = {
+  id: string;
+  user_id: string;
+  provider: string;
+  last4: string;
+  brand: string;
+  exp_month: number;
+  exp_year: number;
+  is_default: boolean;
+  created_at: string;
+};
+
+export type Payment = {
+  id: string;
+  ride_id: string;
+  user_id: string;
+  amount: number;
+  currency: string;
+  method: string;
+  provider: string;
+  status: string;
+  confirm_url?: string;
+  fail_reason?: string;
+  created_at: string;
+  paid_at?: string;
+};
+
+export type PaymentIntent = {
+  payment_id: string;
+  status: string;
+  confirm_url?: string;
+  requires_action: boolean;
+};
+
+export type CreatePaymentInput = {
+  ride_id: string;
+  amount: number;
+  method: "cash" | "card";
+  provider?: string;
+  payment_method_id?: string;
+  save_card?: boolean;
+};
+
+export async function getAvailableProviders(token: string): Promise<string[]> {
+  const res = await fetch(`${config.paymentApiUrl}/api/v1/payments/providers`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Get providers failed");
+  const data = await res.json();
+  return data.providers ?? [];
+}
+
+export async function createPayment(
+  token: string,
+  input: CreatePaymentInput
+): Promise<PaymentIntent> {
+  const res = await fetch(`${config.paymentApiUrl}/api/v1/payments`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error ?? "Create payment failed");
+  }
+  return res.json();
+}
+
+export async function getPayment(token: string, paymentId: string): Promise<Payment> {
+  const res = await fetch(`${config.paymentApiUrl}/api/v1/payments/${paymentId}`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Payment not found");
+  return res.json();
+}
+
+export async function listPayments(token: string, limit = 20): Promise<Payment[]> {
+  const res = await fetch(`${config.paymentApiUrl}/api/v1/payments?limit=${limit}`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("List payments failed");
+  const data = await res.json();
+  return data.payments ?? [];
+}
+
+export async function listPaymentMethods(token: string): Promise<PaymentMethod[]> {
+  const res = await fetch(`${config.paymentApiUrl}/api/v1/payments/methods`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("List payment methods failed");
+  const data = await res.json();
+  return data.methods ?? [];
+}
+
+export async function deletePaymentMethod(token: string, methodId: string): Promise<void> {
+  const res = await fetch(`${config.paymentApiUrl}/api/v1/payments/methods/${methodId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Delete payment method failed");
+}
+
+export async function setDefaultPaymentMethod(token: string, methodId: string): Promise<void> {
+  const res = await fetch(
+    `${config.paymentApiUrl}/api/v1/payments/methods/${methodId}/default`,
+    {
+      method: "POST",
+      headers: authHeaders(token),
+    }
+  );
+  if (!res.ok) throw new Error("Set default payment method failed");
+}
+
+export async function confirmCashPayment(token: string, rideId: string): Promise<Payment> {
+  const res = await fetch(`${config.paymentApiUrl}/api/v1/payments/confirm-cash`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ ride_id: rideId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error ?? "Confirm cash payment failed");
+  }
+  return res.json();
+}

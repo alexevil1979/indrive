@@ -160,3 +160,126 @@ export async function getProfile(token: string): Promise<unknown> {
   if (!res.ok) throw new Error("Get profile failed");
   return res.json();
 }
+
+// ============ DRIVER VERIFICATION ============
+
+export type DriverDocument = {
+  id: string;
+  user_id: string;
+  doc_type: string;
+  file_name: string;
+  file_size: number;
+  content_type: string;
+  storage_url?: string;
+  status: string;
+  reject_reason?: string;
+  uploaded_at: string;
+};
+
+export type DriverVerification = {
+  id: string;
+  user_id: string;
+  status: string;
+  license_number?: string;
+  vehicle_model?: string;
+  vehicle_plate?: string;
+  vehicle_year?: number;
+  documents?: DriverDocument[];
+  reject_reason?: string;
+  submitted_at: string;
+  created_at: string;
+};
+
+export type StartVerificationInput = {
+  license_number: string;
+  vehicle_model?: string;
+  vehicle_plate?: string;
+  vehicle_year?: number;
+};
+
+export async function startVerification(
+  token: string,
+  input: StartVerificationInput
+): Promise<DriverVerification> {
+  const res = await fetch(`${config.userApiUrl}/api/v1/verification`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error ?? "Start verification failed");
+  }
+  return res.json();
+}
+
+export async function getVerificationStatus(token: string): Promise<DriverVerification | null> {
+  const res = await fetch(`${config.userApiUrl}/api/v1/verification`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) {
+    if (res.status === 404) return null;
+    throw new Error("Get verification status failed");
+  }
+  return res.json();
+}
+
+export async function uploadDocument(
+  token: string,
+  docType: string,
+  file: { uri: string; name: string; type: string }
+): Promise<DriverDocument> {
+  const formData = new FormData();
+  formData.append("doc_type", docType);
+  formData.append("file", {
+    uri: file.uri,
+    name: file.name,
+    type: file.type,
+  } as unknown as Blob);
+
+  const res = await fetch(`${config.userApiUrl}/api/v1/verification/documents`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      // Don't set Content-Type for FormData
+    },
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error ?? "Upload document failed");
+  }
+  return res.json();
+}
+
+export async function listDocuments(token: string): Promise<DriverDocument[]> {
+  const res = await fetch(`${config.userApiUrl}/api/v1/verification/documents`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("List documents failed");
+  const data = await res.json();
+  return Array.isArray(data) ? data : data.documents ?? [];
+}
+
+export async function deleteDocument(token: string, docId: string): Promise<void> {
+  const res = await fetch(`${config.userApiUrl}/api/v1/verification/documents/${docId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Delete document failed");
+}
+
+export const DOC_TYPES = {
+  license: "Водительское удостоверение",
+  passport: "Паспорт",
+  vehicle_reg: "СТС",
+  insurance: "ОСАГО",
+  photo: "Фото водителя",
+  vehicle_photo: "Фото автомобиля",
+} as const;
+
+export const VERIFICATION_STATUSES = {
+  pending: "На проверке",
+  approved: "Одобрено",
+  rejected: "Отклонено",
+} as const;

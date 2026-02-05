@@ -32,8 +32,8 @@
 
 ### Приложения
 - **web-admin** (Next.js 15, порт 3000): дашборд, поездки, **пользователи**, **верификация водителей (approve/reject)**, **платежи (refund)**, Tailwind, shadcn/ui
-- **mobile-passenger** (Expo): регистрация, табы, поездки, экран поездки, AuthContext, api/config
-- **mobile-driver** (Expo): профиль, поездки водителя
+- **mobile-passenger** (Expo): регистрация, табы, поездки, **экран оплаты (сохранённые карты, выбор провайдера)**, **интеграция платежей в поездку**, AuthContext, api/config
+- **mobile-driver** (Expo): профиль, поездки водителя, **экран верификации (загрузка документов, статус)**
 
 ### Пакеты (packages)
 - **otel-go:** logger, tracing, metrics, middleware — общий observability для Go
@@ -60,9 +60,13 @@
 2. ~~**Верификация водителя**~~ — ✅ реализовано (user service: MinIO upload, domain, repo, usecase, HTTP handlers, admin review)
 3. ~~**Платёжные интеграции**~~ — ✅ реализовано (payment service: Tinkoff, YooMoney, Sber gateways, webhooks, refunds, saved cards)
 4. ~~**UI для web-admin**~~ — ✅ реализовано (панели: верификация водителей c approve/reject, платежи c refund, пользователи)
-5. **E2E / интеграционные тесты** — Docker Compose + тесты на Go и Node.
-6. **CI/CD** — GitHub Actions: lint, test, build, push images.
-7. **Mobile apps** — интеграция платежей и верификации в мобильные приложения.
+5. ~~**Mobile apps**~~ — ✅ реализовано:
+   - mobile-driver: экран верификации с загрузкой документов (expo-image-picker)
+   - mobile-passenger: экран оплаты (сохранённые карты, провайдеры), интеграция платежей в экран поездки
+6. **E2E / интеграционные тесты** — Docker Compose + тесты на Go и Node.
+7. **CI/CD** — GitHub Actions: lint, test, build, push images.
+8. **Карты и геолокация** — интеграция react-native-maps или Yandex Maps в мобильные приложения.
+9. **Push-уведомления** — Firebase Cloud Messaging интеграция.
 
 При следующем запросе уточнить, какое направление приоритетно.
 
