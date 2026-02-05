@@ -257,6 +257,83 @@ export async function refundPayment(
   }
 }
 
+// ============ RATINGS ============
+
+export type Rating = {
+  id: string;
+  ride_id: string;
+  from_user_id: string;
+  to_user_id: string;
+  role: "passenger" | "driver";
+  score: number;
+  comment?: string;
+  tags?: string[];
+  created_at: string;
+};
+
+export type RatingsResponse = {
+  ratings: Rating[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type UserRating = {
+  user_id: string;
+  role: string;
+  average_score: number;
+  total_ratings: number;
+  score_5_count: number;
+  score_4_count: number;
+  score_3_count: number;
+  score_2_count: number;
+  score_1_count: number;
+};
+
+export async function fetchRatings(
+  limit = 20,
+  offset = 0
+): Promise<RatingsResponse> {
+  const token = getToken();
+  const res = await fetch(
+    `${RIDE_API}/api/v1/admin/ratings?limit=${limit}&offset=${offset}`,
+    { headers: authHeaders(token) }
+  );
+  if (!res.ok) {
+    throw new Error("Failed to fetch ratings");
+  }
+  return res.json();
+}
+
+export async function fetchUserRating(
+  userId: string,
+  role: "passenger" | "driver" = "driver"
+): Promise<UserRating> {
+  const token = getToken();
+  const res = await fetch(
+    `${RIDE_API}/api/v1/users/${userId}/rating?role=${role}`,
+    { headers: authHeaders(token) }
+  );
+  if (!res.ok) {
+    throw new Error("Failed to fetch user rating");
+  }
+  return res.json();
+}
+
+export const TAG_LABELS: Record<string, string> = {
+  polite: "Вежливый",
+  clean_car: "Чистая машина",
+  safe_driving: "Безопасное вождение",
+  fast: "Быстрая поездка",
+  good_music: "Хорошая музыка",
+  comfortable: "Комфортно",
+  on_time: "Вовремя",
+  professional: "Профессиональный",
+  friendly: "Дружелюбный",
+  respectful: "Уважительный",
+  clean: "Аккуратный",
+};
+
 // ============ HELPERS ============
 
 export function formatDate(dateStr: string): string {

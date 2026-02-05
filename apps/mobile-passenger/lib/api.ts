@@ -327,3 +327,97 @@ export async function getNearbyDrivers(
   const data = await res.json();
   return data.drivers ?? [];
 }
+
+// ============ RATINGS ============
+
+export type Rating = {
+  id: string;
+  ride_id: string;
+  from_user_id: string;
+  to_user_id: string;
+  role: "passenger" | "driver";
+  score: number;
+  comment?: string;
+  tags?: string[];
+  created_at: string;
+};
+
+export type UserRating = {
+  user_id: string;
+  role: string;
+  average_score: number;
+  total_ratings: number;
+  score_5_count: number;
+  score_4_count: number;
+  score_3_count: number;
+  score_2_count: number;
+  score_1_count: number;
+};
+
+export type RatingTag = {
+  id: string;
+  label: string;
+};
+
+export async function submitRating(
+  token: string,
+  rideId: string,
+  score: number,
+  comment?: string,
+  tags?: string[]
+): Promise<Rating> {
+  const res = await fetch(`${config.rideApiUrl}/api/v1/rides/${rideId}/rating`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ score, comment, tags }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error ?? "Submit rating failed");
+  }
+  return res.json();
+}
+
+export async function getRideRatings(token: string, rideId: string): Promise<Rating[]> {
+  const res = await fetch(`${config.rideApiUrl}/api/v1/rides/${rideId}/ratings`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.ratings ?? [];
+}
+
+export async function getUserRating(
+  token: string,
+  userId: string,
+  role: "passenger" | "driver" = "driver"
+): Promise<UserRating> {
+  const res = await fetch(`${config.rideApiUrl}/api/v1/users/${userId}/rating?role=${role}`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Get user rating failed");
+  return res.json();
+}
+
+export async function getMyRating(
+  token: string,
+  role: "passenger" | "driver" = "passenger"
+): Promise<UserRating> {
+  const res = await fetch(`${config.rideApiUrl}/api/v1/me/rating?role=${role}`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Get my rating failed");
+  return res.json();
+}
+
+export async function getRatingTags(
+  token: string,
+  role: "passenger" | "driver" = "driver"
+): Promise<RatingTag[]> {
+  const res = await fetch(`${config.rideApiUrl}/api/v1/ratings/tags?role=${role}`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.tags ?? [];
+}

@@ -91,7 +91,10 @@ func main() {
 	jwtValidator := jwt.NewValidator(jwtSecret)
 	rideRepo := pg.NewRideRepo(pool)
 	bidRepo := pg.NewBidRepo(pool)
+	ratingRepo := pg.NewRatingRepo(pool)
 	rideUC := usecase.NewRideUseCase(rideRepo, bidRepo, pub)
+	ratingUC := usecase.NewRatingUseCase(ratingRepo, rideRepo)
+	ratingHandler := httphandler.NewRatingHandler(ratingUC)
 
 	// Setup Echo
 	e := echo.New()
@@ -116,6 +119,16 @@ func main() {
 	api.GET("/rides/:id/bids", httphandler.ListBids(rideUC))
 	api.POST("/rides/:id/accept", httphandler.AcceptBid(rideUC))
 	api.PATCH("/rides/:id/status", httphandler.UpdateRideStatus(rideUC))
+
+	// Rating routes
+	api.POST("/rides/:id/rating", ratingHandler.SubmitRating)
+	api.GET("/rides/:id/ratings", ratingHandler.GetRideRatings)
+	api.GET("/users/:id/rating", ratingHandler.GetUserRating)
+	api.GET("/users/:id/ratings", ratingHandler.GetUserRatings)
+	api.GET("/me/rating", ratingHandler.GetMyRating)
+	api.GET("/me/ratings", ratingHandler.GetMyRatings)
+	api.GET("/ratings/tags", ratingHandler.GetRatingTags)
+	api.GET("/admin/ratings", ratingHandler.ListAllRatings)
 
 	// Start server
 	go func() {

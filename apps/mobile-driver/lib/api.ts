@@ -312,3 +312,105 @@ export async function setDriverOnline(token: string, online: boolean): Promise<v
     console.warn("Failed to set online status");
   }
 }
+
+// ============ RATINGS ============
+
+export type Rating = {
+  id: string;
+  ride_id: string;
+  from_user_id: string;
+  to_user_id: string;
+  role: "passenger" | "driver";
+  score: number;
+  comment?: string;
+  tags?: string[];
+  created_at: string;
+};
+
+export type UserRating = {
+  user_id: string;
+  role: string;
+  average_score: number;
+  total_ratings: number;
+  score_5_count: number;
+  score_4_count: number;
+  score_3_count: number;
+  score_2_count: number;
+  score_1_count: number;
+};
+
+export type RatingTag = {
+  id: string;
+  label: string;
+};
+
+export async function submitRating(
+  token: string,
+  rideId: string,
+  score: number,
+  comment?: string,
+  tags?: string[]
+): Promise<Rating> {
+  const res = await fetch(`${config.rideApiUrl}/api/v1/rides/${rideId}/rating`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ score, comment, tags }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error ?? "Submit rating failed");
+  }
+  return res.json();
+}
+
+export async function getMyRating(
+  token: string,
+  role: "passenger" | "driver" = "driver"
+): Promise<UserRating> {
+  const res = await fetch(`${config.rideApiUrl}/api/v1/me/rating?role=${role}`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Get my rating failed");
+  return res.json();
+}
+
+export async function getMyRatings(
+  token: string,
+  role: "passenger" | "driver" = "driver",
+  limit: number = 20,
+  offset: number = 0
+): Promise<Rating[]> {
+  const res = await fetch(
+    `${config.rideApiUrl}/api/v1/me/ratings?role=${role}&limit=${limit}&offset=${offset}`,
+    { headers: authHeaders(token) }
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.ratings ?? [];
+}
+
+export async function getRatingTags(
+  token: string,
+  role: "passenger" | "driver" = "passenger"
+): Promise<RatingTag[]> {
+  const res = await fetch(`${config.rideApiUrl}/api/v1/ratings/tags?role=${role}`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.tags ?? [];
+}
+
+export const TAG_LABELS: Record<string, string> = {
+  polite: "Вежливый",
+  clean_car: "Чистая машина",
+  safe_driving: "Безопасное вождение",
+  fast: "Быстрая поездка",
+  good_music: "Хорошая музыка",
+  comfortable: "Комфортно",
+  on_time: "Вовремя",
+  professional: "Профессиональный",
+  friendly: "Дружелюбный",
+  respectful: "Уважительный",
+  clean: "Аккуратный",
+};

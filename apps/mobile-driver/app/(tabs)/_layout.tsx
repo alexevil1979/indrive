@@ -29,6 +29,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: "Заявки", tabBarLabel: "Заявки" }} />
       <Tabs.Screen name="rides" options={{ title: "Мои поездки", tabBarLabel: "Поездки" }} />
+      <Tabs.Screen name="rating" options={{ title: "Рейтинг", tabBarLabel: "⭐ Рейтинг" }} />
       <Tabs.Screen name="verification" options={{ title: "Верификация", tabBarLabel: "Верификация" }} />
       <Tabs.Screen name="profile" options={{ title: "Профиль", tabBarLabel: "Профиль" }} />
     </Tabs>

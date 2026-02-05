@@ -43,6 +43,14 @@ function RootLayoutNav() {
             headerBackTitle: "Назад",
           }}
         />
+        <Stack.Screen
+          name="rate/[rideId]"
+          options={{
+            headerShown: true,
+            headerTitle: "Оценка поездки",
+            headerBackTitle: "Назад",
+          }}
+        />
       </Stack>
     </>
   );

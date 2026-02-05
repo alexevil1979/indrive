@@ -31,9 +31,9 @@
 - **notification** (8085): device tokens, **push (Firebase Admin SDK)**, чат WebSocket /ws/chat, **/api/v1/notifications/{new-bid,ride-status,new-ride,bid-accepted,ride-cancelled}**, /metrics (prom-client), pino логи
 
 ### Приложения
-- **web-admin** (Next.js 15, порт 3000): дашборд, поездки, **пользователи**, **верификация водителей (approve/reject)**, **платежи (refund)**, Tailwind, shadcn/ui
-- **mobile-passenger** (Expo): интерактивная карта (react-native-maps), экран оплаты, push-уведомления, **чат с водителем (WebSocket)** в экране поездки
-- **mobile-driver** (Expo): карта с заявками, переключатель «на линии», экран верификации, push-уведомления, **чат с пассажиром (WebSocket)** в экране поездки
+- **web-admin** (Next.js 15, порт 3000): дашборд, поездки, пользователи, верификация, платежи, **отзывы и рейтинги**
+- **mobile-passenger** (Expo): интерактивная карта, оплата, push, чат, **экран оценки водителя после поездки**
+- **mobile-driver** (Expo): карта с заявками, верификация, push, чат, **таб рейтинга**, **экран оценки пассажира**
 
 ### Пакеты (packages)
 - **otel-go:** logger, tracing, metrics, middleware — общий observability для Go
@@ -56,22 +56,25 @@
 
 **Выбор одного из направлений:**
 
-1. ~~**OAuth2 (Google/Yandex/VK)**~~ — ✅ реализовано (auth service)
-2. ~~**Верификация водителя**~~ — ✅ реализовано (user service: MinIO upload, domain, repo, usecase, HTTP handlers, admin review)
-3. ~~**Платёжные интеграции**~~ — ✅ реализовано (payment service: Tinkoff, YooMoney, Sber gateways, webhooks, refunds, saved cards)
-4. ~~**UI для web-admin**~~ — ✅ реализовано (панели: верификация водителей c approve/reject, платежи c refund, пользователи)
+1. ~~**OAuth2 (Google/Yandex/VK)**~~ — ✅ реализовано
+2. ~~**Верификация водителя**~~ — ✅ реализовано
+3. ~~**Платёжные интеграции**~~ — ✅ реализовано
+4. ~~**UI для web-admin**~~ — ✅ реализовано
 5. ~~**Mobile apps (платежи/верификация)**~~ — ✅ реализовано
-6. ~~**Карты и геолокация**~~ — ✅ реализовано (react-native-maps + expo-location)
-7. ~~**Push-уведомления**~~ — ✅ реализовано (expo-notifications + Firebase Admin SDK)
-8. ~~**Чат пассажир-водитель**~~ — ✅ реализовано:
-   - WebSocket хук useChat для real-time сообщений
-   - Компонент Chat с UI (bubbles, connection status, input)
-   - Экран чата /chat/[rideId] в обоих приложениях
-   - Кнопка "Чат" на экране поездки (matched/in_progress)
-   - История сообщений из notification service
-9. **E2E / интеграционные тесты** — Docker Compose + тесты на Go и Node.
-10. **CI/CD** — GitHub Actions: lint, test, build, push images.
-11. **Рейтинги и отзывы** — система оценки после поездки.
+6. ~~**Карты и геолокация**~~ — ✅ реализовано
+7. ~~**Push-уведомления**~~ — ✅ реализовано
+8. ~~**Чат пассажир-водитель**~~ — ✅ реализовано
+9. ~~**Рейтинги и отзывы**~~ — ✅ реализовано:
+   - Domain: Rating entity, UserRating aggregate, tags
+   - PostgreSQL: migrations с триггером для агрегации
+   - Repository + UseCase для рейтингов
+   - HTTP handlers: submit, get user/ride ratings, tags
+   - mobile-passenger: экран оценки водителя после поездки
+   - mobile-driver: таб "Рейтинг" + экран оценки пассажира
+   - web-admin: панель отзывов с пагинацией и статистикой
+10. **E2E / интеграционные тесты** — Docker Compose + тесты на Go и Node.
+11. **CI/CD** — GitHub Actions: lint, test, build, push images.
+12. **Real-time трекинг** — отслеживание позиции водителя на карте пассажира.
 
 При следующем запросе уточнить, какое направление приоритетно.
 

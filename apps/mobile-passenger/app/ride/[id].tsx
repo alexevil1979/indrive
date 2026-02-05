@@ -420,6 +420,23 @@ export default function RideDetailScreen() {
       {ride.status === "requested" || ride.status === "bidding" ? (
         <Text style={styles.hint}>Ожидайте ставки от водителей. Обновите страницу.</Text>
       ) : null}
+
+      {ride.status === "completed" ? (
+        <Card style={styles.card}>
+          <View style={styles.completedHeader}>
+            <Text style={styles.completedIcon}>✅</Text>
+            <Text style={styles.completedTitle}>Поездка завершена</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.rateButton}
+            onPress={() => router.push(`/rate/${id}`)}
+          >
+            <Text style={styles.rateButtonIcon}>⭐</Text>
+            <Text style={styles.rateButtonText}>Оценить водителя</Text>
+            <Text style={styles.rateButtonArrow}>→</Text>
+          </TouchableOpacity>
+        </Card>
+      ) : null}
     </ScrollView>
   );
 }
@@ -467,4 +484,12 @@ const styles = StyleSheet.create({
   chatButtonIcon: { fontSize: 24, marginRight: 12 },
   chatButtonText: { flex: 1, fontSize: 16, fontWeight: "600", color: "#0f172a" },
   chatButtonArrow: { fontSize: 18, color: "#64748b" },
+  // Completed ride
+  completedHeader: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
+  completedIcon: { fontSize: 28, marginRight: 12 },
+  completedTitle: { fontSize: 18, fontWeight: "700", color: "#16a34a" },
+  rateButton: { flexDirection: "row", alignItems: "center", paddingVertical: 14, backgroundColor: "#fef3c7", borderRadius: 12, paddingHorizontal: 16 },
+  rateButtonIcon: { fontSize: 24, marginRight: 12 },
+  rateButtonText: { flex: 1, fontSize: 16, fontWeight: "600", color: "#92400e" },
+  rateButtonArrow: { fontSize: 18, color: "#92400e" },
 });
