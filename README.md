@@ -6,7 +6,7 @@ inDrive-подобный сервис заказа поездок с торга�
 
 | Компонент       | Технология                                      |
 |-----------------|------------------------------------------------|
-| Backend         | Go 1.23+ (auth с OAuth2, user, geolocation, ride, payment) |
+| Backend         | Go 1.23+ (auth с OAuth2, user с верификацией водителя, geolocation, ride, payment) |
 | Realtime        | Node.js (notification: push, chat WebSocket)    |
 | Mobile          | React Native / Expo (passenger, driver)         |
 | Web Admin       | Next.js 15, Tailwind, shadcn/ui                 |
@@ -26,8 +26,8 @@ indrive/
 │   ├── mobile-passenger/    # Expo — пассажир
 │   └── web-admin/           # Next.js — админка
 ├── services/
-│   ├── auth/                # Go — регистрация, JWT
-│   ├── user/                # Go — профили
+│   ├── auth/                # Go — регистрация, JWT, OAuth2
+│   ├── user/                # Go — профили, верификация водителя (MinIO)
 │   ├── geolocation/         # Go — трекинг, Redis GEO
 │   ├── ride/                # Go — поездки, ставки, Kafka
 │   ├── payment/             # Go — платежи (stub)
@@ -121,6 +121,11 @@ cd apps/web-admin && pnpm start
 | `KAFKA_BROKERS`             | (пусто — noop)                                          | Kafka брокеры                   |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | (пусто — noop)                                        | OTLP endpoint (Jaeger)          |
 | `FIREBASE_CREDENTIALS_JSON` | (пусто — noop)                                          | Firebase credentials            |
+| `MINIO_ENDPOINT`            | localhost:9000                                          | MinIO endpoint                  |
+| `MINIO_ACCESS_KEY`          | ridehail_minio                                          | MinIO access key                |
+| `MINIO_SECRET_KEY`          | ridehail_minio_secret                                   | MinIO secret key                |
+| `MINIO_BUCKET`              | ridehail-documents                                      | MinIO bucket name               |
+| `MINIO_PUBLIC_URL`          | (пусто)                                                 | Public URL для MinIO            |
 
 ## Документация
 
