@@ -2,21 +2,23 @@ package pg
 
 import (
 	"context"
-	"database/sql"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/ridehail/payment/internal/domain"
 )
 
 // PromoRepo handles promo persistence
 type PromoRepo struct {
-	db *sql.DB
+	pool *pgxpool.Pool
 }
 
 // NewPromoRepo creates a new promo repository
-func NewPromoRepo(db *sql.DB) *PromoRepo {
-	return &PromoRepo{db: db}
+func NewPromoRepo(pool *pgxpool.Pool) *PromoRepo {
+	return &PromoRepo{pool: pool}
 }
 
 // Create inserts a new promo code
@@ -27,12 +29,12 @@ func (r *PromoRepo) Create(ctx context.Context, promo *domain.Promo) error {
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id, created_at, updated_at
 	`
-	var expiresAt sql.NullTime
+	var expiresAt *time.Time
 	if !promo.ExpiresAt.IsZero() {
-		expiresAt = sql.NullTime{Time: promo.ExpiresAt, Valid: true}
+		expiresAt = &promo.ExpiresAt
 	}
 
-	return r.db.QueryRowContext(ctx, query,
+	return r.pool.QueryRow(ctx, query,
 		strings.ToUpper(promo.Code),
 		promo.Description,
 		promo.Type,
@@ -56,12 +58,15 @@ func (r *PromoRepo) GetByID(ctx context.Context, id string) (*domain.Promo, erro
 		FROM promos WHERE id = $1
 	`
 	var promo domain.Promo
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
+	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&promo.ID, &promo.Code, &promo.Description, &promo.Type, &promo.Value,
 		&promo.MinOrderValue, &promo.MaxDiscount, &promo.UsageLimit, &promo.UsageCount,
 		&promo.PerUserLimit, &promo.IsActive, &promo.StartsAt, &promo.ExpiresAt,
 		&promo.CreatedAt, &promo.UpdatedAt,
 	)
+	if err == pgx.ErrNoRows {
+		return nil, err
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -77,12 +82,15 @@ func (r *PromoRepo) GetByCode(ctx context.Context, code string) (*domain.Promo, 
 		FROM promos WHERE UPPER(code) = UPPER($1)
 	`
 	var promo domain.Promo
-	err := r.db.QueryRowContext(ctx, query, code).Scan(
+	err := r.pool.QueryRow(ctx, query, code).Scan(
 		&promo.ID, &promo.Code, &promo.Description, &promo.Type, &promo.Value,
 		&promo.MinOrderValue, &promo.MaxDiscount, &promo.UsageLimit, &promo.UsageCount,
 		&promo.PerUserLimit, &promo.IsActive, &promo.StartsAt, &promo.ExpiresAt,
 		&promo.CreatedAt, &promo.UpdatedAt,
 	)
+	if err == pgx.ErrNoRows {
+		return nil, err
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -107,12 +115,12 @@ func (r *PromoRepo) Update(ctx context.Context, promo *domain.Promo) error {
 		WHERE id = $1
 		RETURNING updated_at
 	`
-	var expiresAt sql.NullTime
+	var expiresAt *time.Time
 	if !promo.ExpiresAt.IsZero() {
-		expiresAt = sql.NullTime{Time: promo.ExpiresAt, Valid: true}
+		expiresAt = &promo.ExpiresAt
 	}
 
-	return r.db.QueryRowContext(ctx, query,
+	return r.pool.QueryRow(ctx, query,
 		promo.ID,
 		promo.Description,
 		promo.Type,
@@ -129,7 +137,7 @@ func (r *PromoRepo) Update(ctx context.Context, promo *domain.Promo) error {
 
 // Delete removes a promo
 func (r *PromoRepo) Delete(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM promos WHERE id = $1", id)
+	_, err := r.pool.Exec(ctx, "DELETE FROM promos WHERE id = $1", id)
 	return err
 }
 
@@ -141,7 +149,7 @@ func (r *PromoRepo) List(ctx context.Context, limit, offset int, activeOnly bool
 		countQuery += " WHERE is_active = true"
 	}
 	var total int
-	if err := r.db.QueryRowContext(ctx, countQuery).Scan(&total); err != nil {
+	if err := r.pool.QueryRow(ctx, countQuery).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
@@ -157,7 +165,7 @@ func (r *PromoRepo) List(ctx context.Context, limit, offset int, activeOnly bool
 	}
 	query += " ORDER BY created_at DESC LIMIT $1 OFFSET $2"
 
-	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+	rows, err := r.pool.Query(ctx, query, limit, offset)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -183,7 +191,7 @@ func (r *PromoRepo) List(ctx context.Context, limit, offset int, activeOnly bool
 func (r *PromoRepo) GetUserPromoCount(ctx context.Context, userID, promoID string) (int, error) {
 	var count int
 	query := `SELECT COUNT(*) FROM user_promos WHERE user_id = $1 AND promo_id = $2`
-	err := r.db.QueryRowContext(ctx, query, userID, promoID).Scan(&count)
+	err := r.pool.QueryRow(ctx, query, userID, promoID).Scan(&count)
 	return count, err
 }
 
@@ -194,12 +202,12 @@ func (r *PromoRepo) RecordUsage(ctx context.Context, usage *domain.UserPromo) er
 		VALUES ($1, $2, $3, $4)
 		RETURNING id, used_at
 	`
-	var rideID sql.NullString
+	var rideID *string
 	if usage.RideID != "" {
-		rideID = sql.NullString{String: usage.RideID, Valid: true}
+		rideID = &usage.RideID
 	}
 
-	return r.db.QueryRowContext(ctx, query,
+	return r.pool.QueryRow(ctx, query,
 		usage.UserID,
 		usage.PromoID,
 		rideID,
@@ -216,7 +224,7 @@ func (r *PromoRepo) GetUserPromos(ctx context.Context, userID string, limit int)
 		ORDER BY up.used_at DESC
 		LIMIT $2
 	`
-	rows, err := r.db.QueryContext(ctx, query, userID, limit)
+	rows, err := r.pool.Query(ctx, query, userID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -237,14 +245,6 @@ func (r *PromoRepo) GetUserPromos(ctx context.Context, userID string, limit int)
 func (r *PromoRepo) CheckPromoUsedForRide(ctx context.Context, rideID string) (bool, error) {
 	var exists bool
 	query := `SELECT EXISTS(SELECT 1 FROM user_promos WHERE ride_id = $1)`
-	err := r.db.QueryRowContext(ctx, query, rideID).Scan(&exists)
+	err := r.pool.QueryRow(ctx, query, rideID).Scan(&exists)
 	return exists, err
-}
-
-// nullTime helper
-func nullTime(t time.Time) sql.NullTime {
-	if t.IsZero() {
-		return sql.NullTime{}
-	}
-	return sql.NullTime{Time: t, Valid: true}
 }
