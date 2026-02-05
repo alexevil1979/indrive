@@ -5,7 +5,7 @@ export function Button({
   className,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "default" | "outline" | "ghost";
+  variant?: "default" | "outline" | "ghost" | "destructive";
 }) {
   return (
     <button
@@ -14,6 +14,7 @@ export function Button({
         variant === "default" && "bg-primary text-primary-foreground hover:bg-primary/90",
         variant === "outline" && "border border-border bg-background hover:bg-muted",
         variant === "ghost" && "hover:bg-muted",
+        variant === "destructive" && "bg-red-600 text-white hover:bg-red-700",
         className
       )}
       {...props}
