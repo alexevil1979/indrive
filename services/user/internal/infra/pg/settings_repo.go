@@ -74,8 +74,8 @@ func (r *SettingsRepo) UpdateSettings(ctx context.Context, settings *domain.AppS
 
 	_, err := r.pool.Exec(ctx, query,
 		settings.MapProvider,
-		nullString(settings.GoogleMapsAPIKey),
-		nullString(settings.YandexMapsAPIKey),
+		toNullString(settings.GoogleMapsAPIKey),
+		toNullString(settings.YandexMapsAPIKey),
 		settings.DefaultLanguage,
 		settings.DefaultCurrency,
 		settings.UpdatedAt,
@@ -119,7 +119,7 @@ func (r *SettingsRepo) GetMapSettings(ctx context.Context) (*domain.MapSettings,
 	return ms, nil
 }
 
-func nullString(s string) *string {
+func toNullString(s string) *string {
 	if s == "" {
 		return nil
 	}
