@@ -442,6 +442,46 @@ export async function deletePromo(id: string): Promise<void> {
   if (!res.ok) throw new Error("Failed to delete promo");
 }
 
+// ============ APP SETTINGS ============
+
+export type MapProvider = "google" | "yandex";
+
+export type AppSettings = {
+  id: string;
+  map_provider: MapProvider;
+  google_maps_api_key?: string;
+  yandex_maps_api_key?: string;
+  default_language: string;
+  default_currency: string;
+  updated_at: string;
+  updated_by?: string;
+};
+
+export type UpdateSettingsInput = {
+  map_provider: MapProvider;
+  google_maps_api_key?: string;
+  yandex_maps_api_key?: string;
+  default_language?: string;
+  default_currency?: string;
+};
+
+export async function fetchSettings(): Promise<AppSettings> {
+  const res = await fetch(`${USER_API}/api/v1/admin/settings`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to fetch settings");
+  return res.json();
+}
+
+export async function updateSettings(data: UpdateSettingsInput): Promise<void> {
+  const res = await fetch(`${USER_API}/api/v1/admin/settings`, {
+    method: "PUT",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to update settings");
+}
+
 // ============ HELPERS ============
 
 export function formatDate(dateStr: string): string {

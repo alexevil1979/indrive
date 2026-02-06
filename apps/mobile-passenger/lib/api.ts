@@ -478,3 +478,21 @@ export async function getActivePromos(token: string): Promise<Promo[]> {
   const data = await res.json();
   return data.promos ?? [];
 }
+
+// ============ MAP SETTINGS ============
+
+export type MapProvider = "google" | "yandex";
+
+export type MapSettings = {
+  provider: MapProvider;
+  api_key: string;
+};
+
+export async function getMapSettings(): Promise<MapSettings> {
+  const res = await fetch(`${config.userApiUrl}/api/v1/settings/maps`);
+  if (!res.ok) {
+    // Default to google if settings not available
+    return { provider: "google", api_key: "" };
+  }
+  return res.json();
+}

@@ -94,9 +94,14 @@ echo -e "   Запуск Auth (порт $PORT_AUTH)..."
 PORT=$PORT_AUTH nohup ./bin/auth > $LOG_DIR/auth.log 2>&1 &
 sleep 1
 
-# User
+# User (with MinIO credentials)
 echo -e "   Запуск User (порт $PORT_USER)..."
-PORT=$PORT_USER nohup ./bin/user > $LOG_DIR/user.log 2>&1 &
+PORT=$PORT_USER \
+MINIO_ENDPOINT=localhost:9000 \
+MINIO_ACCESS_KEY=minioadmin \
+MINIO_SECRET_KEY=minioadmin \
+MINIO_BUCKET=ridehail-documents \
+nohup ./bin/user > $LOG_DIR/user.log 2>&1 &
 sleep 1
 
 # Geolocation

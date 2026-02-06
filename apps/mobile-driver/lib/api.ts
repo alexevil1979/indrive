@@ -414,3 +414,21 @@ export const TAG_LABELS: Record<string, string> = {
   respectful: "Уважительный",
   clean: "Аккуратный",
 };
+
+// ============ MAP SETTINGS ============
+
+export type MapProvider = "google" | "yandex";
+
+export type MapSettings = {
+  provider: MapProvider;
+  api_key: string;
+};
+
+export async function getMapSettings(): Promise<MapSettings> {
+  const res = await fetch(`${config.userApiUrl}/api/v1/settings/maps`);
+  if (!res.ok) {
+    // Default to google if settings not available
+    return { provider: "google", api_key: "" };
+  }
+  return res.json();
+}

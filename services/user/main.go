@@ -107,14 +107,17 @@ func main() {
 	// Initialize repositories
 	profileRepo := pg.NewProfileRepo(pool)
 	verificationRepo := pg.NewVerificationRepo(pool)
+	settingsRepo := pg.NewSettingsRepo(pool)
 
 	// Initialize use cases
 	jwtValidator := jwt.NewValidator(jwtSecret)
 	profileUC := usecase.NewProfileUseCase(profileRepo)
 	verificationUC := usecase.NewVerificationUseCase(verificationRepo, &storageAdapter{client: storageClient})
+	settingsUC := usecase.NewSettingsUseCase(settingsRepo)
 
-	// Verification handler
+	// Handlers
 	verificationHandler := httphandler.NewVerificationHandler(verificationUC)
+	settingsHandler := httphandler.NewSettingsHandler(settingsUC)
 
 	// Setup Echo
 	e := echo.New()
@@ -149,6 +152,13 @@ func main() {
 	admin.GET("/verifications/:id", verificationHandler.GetVerificationByID())
 	admin.POST("/verifications/:id/review", verificationHandler.ReviewVerification())
 	admin.POST("/documents/:id/review", verificationHandler.ReviewDocument())
+
+	// Admin settings routes
+	admin.GET("/settings", settingsHandler.GetSettings())
+	admin.PUT("/settings", settingsHandler.UpdateSettings())
+
+	// Public settings endpoint (for mobile apps)
+	e.GET("/api/v1/settings/maps", settingsHandler.GetMapSettings())
 
 	// Start server
 	go func() {

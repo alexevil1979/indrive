@@ -12,6 +12,7 @@ const nav = [
   { href: "/payments", label: "Платежи", icon: "💳" },
   { href: "/promos", label: "Промокоды", icon: "🎟️" },
   { href: "/ratings", label: "Отзывы", icon: "⭐" },
+  { href: "/settings", label: "Настройки", icon: "⚙️" },
 ];
 
 export function Sidebar() {
