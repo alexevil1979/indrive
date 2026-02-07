@@ -1,21 +1,42 @@
 /**
- * API client — BFF calls to Ride/Auth/User/Payment services
- * Set environment variables for API URLs
- * ADMIN_JWT required for admin endpoints
+ * API client — BFF calls via server-side proxy /api/proxy/...
+ * The proxy adds ADMIN_JWT on the server side.
+ * For client components, all requests go through /api/proxy/ to avoid exposing tokens.
  */
+const PROXY = "/api/proxy";
+
+// Legacy direct URLs (used for fallback/server-side only)
 const RIDE_API = process.env.NEXT_PUBLIC_RIDE_API_URL ?? "http://localhost:8083";
 const USER_API = process.env.NEXT_PUBLIC_USER_API_URL ?? "http://localhost:8081";
 const PAYMENT_API = process.env.NEXT_PUBLIC_PAYMENT_API_URL ?? "http://localhost:8084";
 const AUTH_API = process.env.NEXT_PUBLIC_AUTH_API_URL ?? "http://localhost:8080";
 
-// Get admin token from env or cookie
+// Check if running in browser
+const isBrowser = typeof window !== "undefined";
+
+// Get admin token from env (server-side only)
 function getAdminToken(): string {
+  if (isBrowser) return "";
   return process.env.ADMIN_JWT ?? "";
 }
 
 function authHeaders(): HeadersInit {
   const token = getAdminToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// Resolve base URL: use proxy in browser, direct URL on server
+function rideApi(): string {
+  return isBrowser ? PROXY : RIDE_API;
+}
+function userApi(): string {
+  return isBrowser ? PROXY : USER_API;
+}
+function paymentApi(): string {
+  return isBrowser ? PROXY : PAYMENT_API;
+}
+function authApi(): string {
+  return isBrowser ? PROXY : AUTH_API;
 }
 
 // ============ RIDES ============
@@ -33,12 +54,16 @@ export type Ride = {
 };
 
 export async function fetchRides(): Promise<Ride[]> {
-  const token = getAdminToken();
-  const url = token
-    ? `${RIDE_API}/api/v1/admin/rides?limit=100`
-    : `${RIDE_API}/api/v1/rides?limit=100`;
+  const base = rideApi();
+  const url = `${base}/api/v1/admin/rides?limit=100`;
   const res = await fetch(url, { headers: authHeaders(), cache: "no-store" });
-  if (!res.ok) return [];
+  if (!res.ok) {
+    // Fallback to public endpoint
+    const res2 = await fetch(`${base}/api/v1/rides?limit=100`, { cache: "no-store" });
+    if (!res2.ok) return [];
+    const data = await res2.json();
+    return (data as { rides?: Ride[] }).rides ?? [];
+  }
   const data = await res.json();
   return (data as { rides?: Ride[] }).rides ?? [];
 }
@@ -58,7 +83,7 @@ export type User = {
 
 export async function fetchUsers(): Promise<User[]> {
   try {
-    const res = await fetch(`${AUTH_API}/api/v1/admin/users?limit=100`, {
+    const res = await fetch(`${authApi()}/api/v1/admin/users?limit=100`, {
       headers: authHeaders(),
       cache: "no-store",
     });
@@ -72,7 +97,7 @@ export async function fetchUsers(): Promise<User[]> {
 
 export async function fetchUser(id: string): Promise<User | null> {
   try {
-    const res = await fetch(`${AUTH_API}/api/v1/admin/users/${id}`, {
+    const res = await fetch(`${authApi()}/api/v1/admin/users/${id}`, {
       headers: authHeaders(),
       cache: "no-store",
     });
@@ -119,7 +144,7 @@ export type DriverVerification = {
 
 export async function fetchVerifications(): Promise<DriverVerification[]> {
   try {
-    const res = await fetch(`${USER_API}/api/v1/admin/verifications?limit=100`, {
+    const res = await fetch(`${userApi()}/api/v1/admin/verifications?limit=100`, {
       headers: authHeaders(),
       cache: "no-store",
     });
@@ -133,7 +158,7 @@ export async function fetchVerifications(): Promise<DriverVerification[]> {
 
 export async function fetchVerification(id: string): Promise<DriverVerification | null> {
   try {
-    const res = await fetch(`${USER_API}/api/v1/admin/verifications/${id}`, {
+    const res = await fetch(`${userApi()}/api/v1/admin/verifications/${id}`, {
       headers: authHeaders(),
       cache: "no-store",
     });
@@ -150,7 +175,7 @@ export async function reviewVerification(
   rejectReason?: string
 ): Promise<boolean> {
   try {
-    const res = await fetch(`${USER_API}/api/v1/admin/verifications/${id}/review`, {
+    const res = await fetch(`${userApi()}/api/v1/admin/verifications/${id}/review`, {
       method: "POST",
       headers: { ...authHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ approved, reject_reason: rejectReason }),
@@ -167,7 +192,7 @@ export async function reviewDocument(
   rejectReason?: string
 ): Promise<boolean> {
   try {
-    const res = await fetch(`${USER_API}/api/v1/admin/documents/${id}/review`, {
+    const res = await fetch(`${userApi()}/api/v1/admin/documents/${id}/review`, {
       method: "POST",
       headers: { ...authHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ approved, reject_reason: rejectReason }),
@@ -211,7 +236,7 @@ export type PaymentStats = {
 
 export async function fetchPayments(): Promise<Payment[]> {
   try {
-    const res = await fetch(`${PAYMENT_API}/api/v1/admin/payments?limit=100`, {
+    const res = await fetch(`${paymentApi()}/api/v1/admin/payments?limit=100`, {
       headers: authHeaders(),
       cache: "no-store",
     });
@@ -225,7 +250,7 @@ export async function fetchPayments(): Promise<Payment[]> {
 
 export async function fetchPayment(id: string): Promise<Payment | null> {
   try {
-    const res = await fetch(`${PAYMENT_API}/api/v1/payments/${id}`, {
+    const res = await fetch(`${paymentApi()}/api/v1/payments/${id}`, {
       headers: authHeaders(),
       cache: "no-store",
     });
@@ -242,7 +267,7 @@ export async function refundPayment(
   reason?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await fetch(`${PAYMENT_API}/api/v1/payments/${id}/refund`, {
+    const res = await fetch(`${paymentApi()}/api/v1/payments/${id}/refund`, {
       method: "POST",
       headers: { ...authHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ amount, reason }),
@@ -295,7 +320,7 @@ export async function fetchRatings(
   offset = 0
 ): Promise<RatingsResponse> {
   const res = await fetch(
-    `${RIDE_API}/api/v1/admin/ratings?limit=${limit}&offset=${offset}`,
+    `${rideApi()}/api/v1/admin/ratings?limit=${limit}&offset=${offset}`,
     { headers: authHeaders() }
   );
   if (!res.ok) {
@@ -309,7 +334,7 @@ export async function fetchUserRating(
   role: "passenger" | "driver" = "driver"
 ): Promise<UserRating> {
   const res = await fetch(
-    `${RIDE_API}/api/v1/users/${userId}/rating?role=${role}`,
+    `${rideApi()}/api/v1/users/${userId}/rating?role=${role}`,
     { headers: authHeaders() }
   );
   if (!res.ok) {
@@ -396,7 +421,7 @@ export async function fetchPromos(
   });
   if (activeOnly) params.append("active_only", "true");
 
-  const res = await fetch(`${PAYMENT_API}/api/v1/admin/promos?${params}`, {
+  const res = await fetch(`${paymentApi()}/api/v1/admin/promos?${params}`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error("Failed to fetch promos");
@@ -404,7 +429,7 @@ export async function fetchPromos(
 }
 
 export async function fetchPromo(id: string): Promise<Promo> {
-  const res = await fetch(`${PAYMENT_API}/api/v1/admin/promos/${id}`, {
+  const res = await fetch(`${paymentApi()}/api/v1/admin/promos/${id}`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error("Failed to fetch promo");
@@ -412,7 +437,7 @@ export async function fetchPromo(id: string): Promise<Promo> {
 }
 
 export async function createPromo(data: CreatePromoInput): Promise<Promo> {
-  const res = await fetch(`${PAYMENT_API}/api/v1/admin/promos`, {
+  const res = await fetch(`${paymentApi()}/api/v1/admin/promos`, {
     method: "POST",
     headers: { ...authHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -425,7 +450,7 @@ export async function updatePromo(
   id: string,
   data: UpdatePromoInput
 ): Promise<Promo> {
-  const res = await fetch(`${PAYMENT_API}/api/v1/admin/promos/${id}`, {
+  const res = await fetch(`${paymentApi()}/api/v1/admin/promos/${id}`, {
     method: "PUT",
     headers: { ...authHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -435,7 +460,7 @@ export async function updatePromo(
 }
 
 export async function deletePromo(id: string): Promise<void> {
-  const res = await fetch(`${PAYMENT_API}/api/v1/admin/promos/${id}`, {
+  const res = await fetch(`${paymentApi()}/api/v1/admin/promos/${id}`, {
     method: "DELETE",
     headers: authHeaders(),
   });
@@ -466,7 +491,7 @@ export type UpdateSettingsInput = {
 };
 
 export async function fetchSettings(): Promise<AppSettings> {
-  const res = await fetch(`${USER_API}/api/v1/admin/settings`, {
+  const res = await fetch(`${userApi()}/api/v1/admin/settings`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error("Failed to fetch settings");
@@ -474,7 +499,7 @@ export async function fetchSettings(): Promise<AppSettings> {
 }
 
 export async function updateSettings(data: UpdateSettingsInput): Promise<void> {
-  const res = await fetch(`${USER_API}/api/v1/admin/settings`, {
+  const res = await fetch(`${userApi()}/api/v1/admin/settings`, {
     method: "PUT",
     headers: { ...authHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify(data),
