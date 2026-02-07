@@ -14,19 +14,9 @@ const INTERNAL_AUTH = process.env.INTERNAL_AUTH_URL ?? "http://localhost:9080";
 // Check if running in browser
 const isBrowser = typeof window !== "undefined";
 
-// Get admin token: cookie first, then env fallback (server-side only)
+// Get admin token from env (server-side only); cookie-based auth is handled by the proxy
 function getAdminToken(): string {
   if (isBrowser) return "";
-  try {
-    // Dynamic import of next/headers for server components
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { cookies } = require("next/headers");
-    const cookieStore = cookies();
-    const token = cookieStore.get("access_token")?.value;
-    if (token) return token;
-  } catch {
-    // Fallback if cookies() not available
-  }
   return process.env.ADMIN_JWT ?? "";
 }
 
