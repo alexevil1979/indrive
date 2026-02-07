@@ -150,7 +150,9 @@ export async function fetchVerifications(): Promise<DriverVerification[]> {
     });
     if (!res.ok) return [];
     const data = await res.json();
-    return data.verifications ?? data ?? [];
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.verifications)) return data.verifications;
+    return [];
   } catch {
     return [];
   }
