@@ -5,11 +5,11 @@
  */
 const PROXY = "/api/proxy";
 
-// Legacy direct URLs (used for fallback/server-side only)
-const RIDE_API = process.env.NEXT_PUBLIC_RIDE_API_URL ?? "http://localhost:8083";
-const USER_API = process.env.NEXT_PUBLIC_USER_API_URL ?? "http://localhost:8081";
-const PAYMENT_API = process.env.NEXT_PUBLIC_PAYMENT_API_URL ?? "http://localhost:8084";
-const AUTH_API = process.env.NEXT_PUBLIC_AUTH_API_URL ?? "http://localhost:8080";
+// Internal URLs for server-side direct access (no loops through external proxy)
+const INTERNAL_RIDE = process.env.INTERNAL_RIDE_URL ?? "http://localhost:9083";
+const INTERNAL_USER = process.env.INTERNAL_USER_URL ?? "http://localhost:9081";
+const INTERNAL_PAYMENT = process.env.INTERNAL_PAYMENT_URL ?? "http://localhost:9084";
+const INTERNAL_AUTH = process.env.INTERNAL_AUTH_URL ?? "http://localhost:9080";
 
 // Check if running in browser
 const isBrowser = typeof window !== "undefined";
@@ -25,18 +25,18 @@ function authHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// Resolve base URL: use proxy in browser, direct URL on server
+// Resolve base URL: use proxy in browser, internal URL on server
 function rideApi(): string {
-  return isBrowser ? PROXY : RIDE_API;
+  return isBrowser ? PROXY : INTERNAL_RIDE;
 }
 function userApi(): string {
-  return isBrowser ? PROXY : USER_API;
+  return isBrowser ? PROXY : INTERNAL_USER;
 }
 function paymentApi(): string {
-  return isBrowser ? PROXY : PAYMENT_API;
+  return isBrowser ? PROXY : INTERNAL_PAYMENT;
 }
 function authApi(): string {
-  return isBrowser ? PROXY : AUTH_API;
+  return isBrowser ? PROXY : INTERNAL_AUTH;
 }
 
 // ============ RIDES ============
