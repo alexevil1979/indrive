@@ -18,7 +18,8 @@
 
 1. В меню слева выберите **APIs & Services** → **Library**
 2. Найдите и включите следующие API:
-   - **Maps SDK for Android** — для Android приложения
+   - **
+   ** — для Android приложения
    - **Maps SDK for iOS** — для iOS приложения
    - **Maps JavaScript API** — для веб-версии (опционально)
    - **Geocoding API** — для преобразования адресов в координаты
@@ -39,13 +40,110 @@
 ### 4. Ограничение API ключа (рекомендуется)
 
 1. Нажмите на созданный ключ для редактирования
+
 2. В разделе **Application restrictions**:
-   - Для Android: выберите **Android apps** и добавьте SHA-1 отпечаток и package name
-   - Для iOS: выберите **iOS apps** и добавьте bundle identifier
-   - Для сервера: выберите **IP addresses** и укажите IP вашего сервера
+
+#### Для Android:
+
+Выберите **Android apps** → **Add** и заполните:
+
+**Package name** (имя пакета) — берётся из `app.json`:
+```
+Приложение пассажира:  com.ridehail.passenger
+Приложение водителя:   com.ridehail.driver
+```
+
+**SHA-1 отпечаток** — зависит от типа сборки:
+
+**Вариант A: Debug (для разработки)**
+
+На компьютере с проектом выполните:
+
+Windows:
+```cmd
+keytool -list -v -keystore "%USERPROFILE%\.android\debug.keystore" -alias androiddebugkey -storepass android -keypass android
+```
+
+Linux/Mac:
+```bash
+keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
+```
+
+Найдите строку `SHA1:` — это и есть нужный отпечаток. Пример:
+```
+SHA1: DA:39:A3:EE:5E:6B:4B:0D:32:55:BF:EF:95:60:18:90:AF:D8:07:09
+```
+
+> Если файл `debug.keystore` не существует, сначала сделайте хотя бы один Android-билд.
+
+**Вариант B: EAS Build (Expo Application Services)**
+
+Если вы собираете через EAS:
+```bash
+# Для приложения пассажира
+cd apps/mobile-passenger
+eas credentials -p android
+
+# Для приложения водителя
+cd apps/mobile-driver
+eas credentials -p android
+```
+
+Выберите **Keystore** → команда покажет SHA-1.
+
+**Вариант C: Свой Release keystore**
+
+Если у вас свой keystore для подписи релизных сборок:
+```bash
+keytool -list -v -keystore /path/to/your-release.keystore -alias your-alias
+```
+
+Введите пароль от keystore — найдите строку `SHA1:`.
+
+**Вариант D: Создать новый keystore для релиза**
+
+```bash
+keytool -genkey -v -keystore indrive-release.keystore -alias indrive -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Затем получите SHA-1 из нового keystore:
+```bash
+keytool -list -v -keystore indrive-release.keystore -alias indrive
+```
+
+> **Важно:** Сохраните keystore и пароли в безопасном месте! Потеря keystore = невозможность обновлять приложение в Google Play.
+
+**Добавление в Google Cloud Console:**
+
+Для каждого приложения добавьте две записи (debug + release):
+
+| Package name | SHA-1 | Назначение |
+|---|---|---|
+| `com.ridehail.passenger` | `DA:39:...` (debug) | Тестирование |
+| `com.ridehail.passenger` | `AB:CD:...` (release) | Продакшен |
+| `com.ridehail.driver` | `DA:39:...` (debug) | Тестирование |
+| `com.ridehail.driver` | `AB:CD:...` (release) | Продакшен |
+
+#### Для iOS:
+
+Выберите **iOS apps** → **Add** и введите bundle identifier:
+```
+Приложение пассажира:  com.ridehail.passenger
+Приложение водителя:   com.ridehail.driver
+```
+
+Bundle identifier берётся из `app.json` → `expo.ios.bundleIdentifier`.
+
+#### Для сервера (необязательно):
+
+Если карты используются на сервере (геокодирование):
+- Выберите **IP addresses**
+- Укажите IP: `192.168.1.121` (или внешний IP вашего сервера)
+
 3. В разделе **API restrictions**:
    - Выберите **Restrict key**
    - Отметьте только нужные API (Maps SDK for Android/iOS, Geocoding, Directions, Places)
+
 4. Нажмите **Save**
 
 ### 5. Настройка биллинга
