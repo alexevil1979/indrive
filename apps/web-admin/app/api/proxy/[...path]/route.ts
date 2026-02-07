@@ -41,7 +41,11 @@ async function handler(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await params;
-  const apiPath = path.join("/");
+  let apiPath = path.join("/");
+  // Strip leading "api/" if present (client sends /api/proxy/api/v1/...)
+  if (apiPath.startsWith("api/")) {
+    apiPath = apiPath.slice(4);
+  }
   const backend = resolveBackend(apiPath);
   const targetUrl = `${backend}/api/${apiPath}`;
 
