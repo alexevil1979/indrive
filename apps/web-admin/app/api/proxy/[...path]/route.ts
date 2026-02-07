@@ -5,23 +5,34 @@ import { NextRequest, NextResponse } from "next/server";
  * Client calls /api/proxy/v1/admin/settings → proxy forwards to USER_API/api/v1/admin/settings with auth header.
  */
 
+// Internal URLs for server-side proxy (NOT public URLs to avoid loops)
+const INTERNAL_USER = process.env.INTERNAL_USER_URL ?? "http://localhost:9081";
+const INTERNAL_RIDE = process.env.INTERNAL_RIDE_URL ?? "http://localhost:9083";
+const INTERNAL_PAYMENT = process.env.INTERNAL_PAYMENT_URL ?? "http://localhost:9084";
+const INTERNAL_AUTH = process.env.INTERNAL_AUTH_URL ?? "http://localhost:9080";
+
 const SERVICE_MAP: Record<string, string> = {
   // User service routes
-  "v1/users": process.env.NEXT_PUBLIC_USER_API_URL ?? "http://localhost:8081",
-  "v1/verification": process.env.NEXT_PUBLIC_USER_API_URL ?? "http://localhost:8081",
-  "v1/admin/verifications": process.env.NEXT_PUBLIC_USER_API_URL ?? "http://localhost:8081",
-  "v1/admin/settings": process.env.NEXT_PUBLIC_USER_API_URL ?? "http://localhost:8081",
+  "v1/users": INTERNAL_USER,
+  "v1/verification": INTERNAL_USER,
+  "v1/admin/verifications": INTERNAL_USER,
+  "v1/admin/settings": INTERNAL_USER,
+  "v1/admin/documents": INTERNAL_USER,
   // Ride service routes
-  "v1/rides": process.env.NEXT_PUBLIC_RIDE_API_URL ?? "http://localhost:8083",
-  "v1/admin/rides": process.env.NEXT_PUBLIC_RIDE_API_URL ?? "http://localhost:8083",
-  "v1/admin/ratings": process.env.NEXT_PUBLIC_RIDE_API_URL ?? "http://localhost:8083",
-  "v1/ratings": process.env.NEXT_PUBLIC_RIDE_API_URL ?? "http://localhost:8083",
+  "v1/rides": INTERNAL_RIDE,
+  "v1/admin/rides": INTERNAL_RIDE,
+  "v1/admin/ratings": INTERNAL_RIDE,
+  "v1/ratings": INTERNAL_RIDE,
+  "v1/bids": INTERNAL_RIDE,
+  "v1/user/ratings": INTERNAL_RIDE,
   // Payment service routes
-  "v1/payments": process.env.NEXT_PUBLIC_PAYMENT_API_URL ?? "http://localhost:8084",
-  "v1/admin/promos": process.env.NEXT_PUBLIC_PAYMENT_API_URL ?? "http://localhost:8084",
-  "v1/promos": process.env.NEXT_PUBLIC_PAYMENT_API_URL ?? "http://localhost:8084",
+  "v1/payments": INTERNAL_PAYMENT,
+  "v1/admin/payments": INTERNAL_PAYMENT,
+  "v1/admin/promos": INTERNAL_PAYMENT,
+  "v1/promos": INTERNAL_PAYMENT,
+  "v1/user/promos": INTERNAL_PAYMENT,
   // Auth service routes
-  "v1/admin/users": process.env.NEXT_PUBLIC_AUTH_API_URL ?? "http://localhost:8080",
+  "v1/admin/users": INTERNAL_AUTH,
 };
 
 function resolveBackend(path: string): string {
