@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Sidebar } from "@/components/Sidebar";
+import { LayoutShell } from "@/components/LayoutShell";
 
 export const metadata: Metadata = {
   title: "RideHail Admin",
@@ -15,8 +15,7 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body className="min-h-screen flex">
-        <Sidebar />
-        <main className="flex-1 p-6 lg:p-8">{children}</main>
+        <LayoutShell>{children}</LayoutShell>
       </body>
     </html>
   );

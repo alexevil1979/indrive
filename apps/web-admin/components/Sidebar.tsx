@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 const nav = [
   { href: "/", label: "Дашборд", icon: "📊" },
@@ -17,6 +18,19 @@ const nav = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/login");
+      router.refresh();
+    } catch {
+      setLoggingOut(false);
+    }
+  }
 
   return (
     <aside className="w-56 border-r border-border bg-muted/30 flex flex-col">
@@ -41,7 +55,15 @@ export function Sidebar() {
           </Link>
         ))}
       </nav>
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border space-y-2">
+        <button
+          onClick={handleLogout}
+          disabled={loggingOut}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+        >
+          <span>🚪</span>
+          {loggingOut ? "Выход..." : "Выйти"}
+        </button>
         <p className="text-xs text-muted-foreground">
           API: {process.env.NEXT_PUBLIC_RIDE_API_URL ? "connected" : "localhost"}
         </p>

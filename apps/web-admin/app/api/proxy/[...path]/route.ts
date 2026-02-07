@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Server-side API proxy — adds ADMIN_JWT to requests.
- * Client calls /api/proxy/v1/admin/settings → proxy forwards to USER_API/api/v1/admin/settings with auth header.
+ * Server-side API proxy — adds auth token from cookie (or ADMIN_JWT env fallback).
+ * Client calls /api/proxy/api/v1/admin/settings → proxy forwards to internal service with auth header.
+ * On 401, attempts token refresh automatically.
  */
 
 // Internal URLs for server-side proxy (NOT public URLs to avoid loops)
@@ -36,15 +37,60 @@ const SERVICE_MAP: Record<string, string> = {
 };
 
 function resolveBackend(path: string): string {
-  // Try longest prefix match
   const sorted = Object.keys(SERVICE_MAP).sort((a, b) => b.length - a.length);
   for (const prefix of sorted) {
     if (path.startsWith(prefix)) {
       return SERVICE_MAP[prefix];
     }
   }
-  // Default to user service
-  return process.env.NEXT_PUBLIC_USER_API_URL ?? "http://localhost:8081";
+  return INTERNAL_USER;
+}
+
+function getToken(req: NextRequest): string {
+  // 1. Cookie token (from login flow)
+  const cookieToken = req.cookies.get("access_token")?.value;
+  if (cookieToken) return cookieToken;
+  // 2. Fallback to env (legacy)
+  return process.env.ADMIN_JWT ?? "";
+}
+
+async function tryRefresh(req: NextRequest): Promise<string | null> {
+  const refreshToken = req.cookies.get("refresh_token")?.value;
+  if (!refreshToken) return null;
+
+  try {
+    const res = await fetch(`${INTERNAL_AUTH}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function doFetch(
+  fullUrl: string,
+  method: string,
+  token: string,
+  body?: string
+): Promise<Response> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const fetchOptions: RequestInit = { method, headers };
+  if (body && method !== "GET" && method !== "HEAD") {
+    fetchOptions.body = body;
+  }
+
+  return fetch(fullUrl, fetchOptions);
 }
 
 async function handler(
@@ -60,35 +106,46 @@ async function handler(
   const backend = resolveBackend(apiPath);
   const targetUrl = `${backend}/api/${apiPath}`;
 
-  // Forward query params
   const searchParams = req.nextUrl.searchParams.toString();
   const fullUrl = searchParams ? `${targetUrl}?${searchParams}` : targetUrl;
 
-  const token = process.env.ADMIN_JWT ?? "";
+  const token = getToken(req);
 
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+  let body: string | undefined;
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    body = await req.text();
+    if (!body) body = undefined;
   }
 
   try {
-    const fetchOptions: RequestInit = {
-      method: req.method,
-      headers,
-    };
+    let res = await doFetch(fullUrl, req.method, token, body);
 
-    if (req.method !== "GET" && req.method !== "HEAD") {
-      const body = await req.text();
-      if (body) {
-        fetchOptions.body = body;
+    // Auto-refresh on 401
+    if (res.status === 401 && req.cookies.get("refresh_token")?.value) {
+      const newToken = await tryRefresh(req);
+      if (newToken) {
+        res = await doFetch(fullUrl, req.method, newToken, body);
+
+        if (res.ok || res.status !== 401) {
+          const data = await res.text();
+          const response = new NextResponse(data, {
+            status: res.status,
+            headers: { "Content-Type": res.headers.get("Content-Type") ?? "application/json" },
+          });
+          // Update cookie with new token
+          response.cookies.set("access_token", newToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            path: "/",
+            maxAge: 86400,
+          });
+          return response;
+        }
       }
     }
 
-    const res = await fetch(fullUrl, fetchOptions);
     const data = await res.text();
-
     return new NextResponse(data, {
       status: res.status,
       headers: { "Content-Type": res.headers.get("Content-Type") ?? "application/json" },

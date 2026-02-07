@@ -1,7 +1,7 @@
 /**
  * API client — BFF calls via server-side proxy /api/proxy/...
- * The proxy adds ADMIN_JWT on the server side.
- * For client components, all requests go through /api/proxy/ to avoid exposing tokens.
+ * Browser: requests go through /api/proxy/ which reads token from httpOnly cookie.
+ * Server: direct calls to internal services with token from cookie or ADMIN_JWT env.
  */
 const PROXY = "/api/proxy";
 
@@ -14,9 +14,19 @@ const INTERNAL_AUTH = process.env.INTERNAL_AUTH_URL ?? "http://localhost:9080";
 // Check if running in browser
 const isBrowser = typeof window !== "undefined";
 
-// Get admin token from env (server-side only)
+// Get admin token: cookie first, then env fallback (server-side only)
 function getAdminToken(): string {
   if (isBrowser) return "";
+  try {
+    // Dynamic import of next/headers for server components
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { cookies } = require("next/headers");
+    const cookieStore = cookies();
+    const token = cookieStore.get("access_token")?.value;
+    if (token) return token;
+  } catch {
+    // Fallback if cookies() not available
+  }
   return process.env.ADMIN_JWT ?? "";
 }
 
